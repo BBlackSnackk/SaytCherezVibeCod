@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="uk" data-season="base">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Вівальді — одяг чотирьох сезонів</title>
+  <meta name="description" content="Вівальді — магазин одягу для всієї родини. Колекції Весна, Літо, Осінь, Зима. Доставка по всій Україні.">
+  <meta name="theme-color" content="#8a3b45">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Вівальді">
+  <meta property="og:title" content="Вівальді — одяг чотирьох сезонів">
+  <meta property="og:description" content="Затишний одяг для всієї родини: колекції Весна, Літо, Осінь, Зима. Навчальний проєкт інтернет-магазину.">
+  <meta property="og:image" content="images/hero-autumn.jpg">
+  <meta property="og:locale" content="uk_UA">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" type="image/svg+xml" href="images/logo-v1.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Prata&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ============ ШАПКА ============ -->
+<a class="skip-link" href="#catalog">Перейти до каталогу</a>
+<header class="header">
+  <div class="topbar">
+    <div class="wrap topbar-inner">
+      <a href="#home" class="logo" aria-label="Вівальді — на головну">
+        <svg class="logo-svg" viewBox="0 0 48 48" aria-hidden="true">
+          <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M24 3v15M21.5 5h5" stroke="currentColor" stroke-width="2.2"/>
+            <path d="M24 18c-5 0-8 3-7 7 .5 2.2-1.6 3.2-1.6 6 0 5 4 9 8.6 9s8.6-4 8.6-9c0-2.8-2.1-3.8-1.6-6 1-4-2-7-7-7z" stroke="currentColor" stroke-width="2.2"/>
+            <path d="M21 26.5c.6 1 .6 2.2 0 3.2M27 26.5c-.6 1-.6 2.2 0 3.2" stroke="currentColor" stroke-width="1.6"/>
+            <path d="M6 30c6-9 26-4 32-17M8 20c9 5 22 12 31 4" stroke="var(--yarn)" stroke-width="1.8"/>
+            <circle cx="39" cy="39" r="5.5" stroke="var(--yarn)" stroke-width="2"/>
+            <path d="M35 37.5c2.5-1.5 5.5-1.5 8 .5M35 41c2.5-1 5.5-.8 7.5 1" stroke="var(--yarn)" stroke-width="1.3"/>
+          </g>
+        </svg>
+        <span class="logo-text">Вівальді<small>одяг чотирьох сезонів</small></span>
+      </a>
+
+      <button class="btn-catalog" data-scroll="#catalog" aria-label="Перейти до каталогу">
+        <span class="burger" aria-hidden="true"></span><span class="hide-sm">Каталог</span>
+      </button>
+
+      <form class="search" role="search" onsubmit="return false">
+        <input id="search" type="search" placeholder="Я шукаю… наприклад, «светр» або «Пролісок»" aria-label="Пошук товарів">
+        <button type="submit" aria-label="Знайти">🔍</button>
+      </form>
+
+      <a class="phone hide-md" href="tel:0800167844">
+        <b>0 800 167 844</b><small>безкоштовно по Україні</small>
+      </a>
+
+      <button class="icon-btn" id="openCart" aria-label="Кошик">
+        🛒<span class="badge" id="cartCount">0</span>
+      </button>
+    </div>
+  </div>
+
+  <nav class="seasonnav" aria-label="Розділи сторінки">
+    <div class="wrap seasonnav-inner">
+      <a href="#home" data-nav="home">🎻 Головна</a>
+      <a href="#season-spring" data-nav="season-spring">🌱 Весна</a>
+      <a href="#season-summer" data-nav="season-summer">☀️ Літо</a>
+      <a href="#season-autumn" data-nav="season-autumn">🍂 Осінь</a>
+      <a href="#season-winter" data-nav="season-winter">❄️ Зима</a>
+      <a href="#sizes" data-nav="sizes">📏 Розміри</a>
+      <a href="#delivery" data-nav="delivery">🚚 Доставка й оплата</a>
+      <a href="#about" data-nav="about">🎼 Про нас</a>
+      <a href="#reviews" data-nav="reviews">💬 Відгуки</a>
+      <a href="#contacts" data-nav="contacts">📞 Контакти</a>
+    </div>
+  </nav>
+</header>
+
+<main>
+  <!-- ============ ГЕРОЙ ============ -->
+  <section id="home" class="zone hero" data-zone="base">
+    <div class="wrap hero-inner">
+      <div class="hero-text">
+        <p class="eyebrow">Нова колекція 2026</p>
+        <h1>Одяг, що звучить<br><em>як чотири пори року</em></h1>
+        <p class="lead">Натхненні «Порами року» Антоніо Вівальді, ми шиємо затишний одяг для всієї родини: для жінок, чоловіків і дітей. Легкий льон для спеки, м'який трикотаж для осені й теплий пух для морозів — за доступними цінами.</p>
+        <div class="hero-cta">
+          <button class="btn btn-primary" data-scroll="#catalog">До каталогу</button>
+          <button class="btn btn-ghost" data-bot-open>💬 Запитати Віва-бота</button>
+        </div>
+      </div>
+      <div class="hero-tiles">
+        <a href="#season-spring" class="tile t-spring"><span>🌱</span><b>Весна</b><i>La Primavera</i></a>
+        <a href="#season-summer" class="tile t-summer"><span>☀️</span><b>Літо</b><i>L'Estate</i></a>
+        <a href="#season-autumn" class="tile t-autumn"><span>🍂</span><b>Осінь</b><i>L'Autunno</i></a>
+        <a href="#season-winter" class="tile t-winter"><span>❄️</span><b>Зима</b><i>L'Inverno</i></a>
+      </div>
+    </div>
+    <div class="wrap perks">
+      <div><span>🚚</span><p><b>Нова Пошта 1–3 дні</b>по всій Україні</p></div>
+      <div><span>🎁</span><p><b>Безкоштовно від 1500 ₴</b>доставка до відділення</p></div>
+      <div><span>↩️</span><p><b>14 днів</b>на обмін і повернення</p></div>
+      <div><span>💳</span><p><b>Оплата при отриманні</b>або на картку</p></div>
+    </div>
+  </section>
+
+  <!-- ============ КАТАЛОГ ============ -->
+  <div id="catalog" class="wrap catalog">
+    <aside class="filters" id="filters" aria-label="Фільтри">
+      <div class="filters-head">
+        <h2>Фільтри</h2>
+        <button class="link-btn" id="resetFilters">Скинути</button>
+        <button class="icon-btn close-filters" id="closeFilters" aria-label="Закрити фільтри">✕</button>
+      </div>
+      <div id="filterBody"></div>
+      <button class="btn btn-primary show-sm-block" id="applyFilters">Показати товари</button>
+    </aside>
+
+    <div class="catalog-main">
+      <div class="toolbar">
+        <button class="btn btn-ghost show-sm" id="openFilters">⚙️ Фільтри</button>
+        <p class="found" id="found"></p>
+        <label class="sort">Сортувати:
+          <select id="sort">
+            <option value="popular">за популярністю</option>
+            <option value="cheap">від дешевих</option>
+            <option value="expensive">від дорогих</option>
+            <option value="rating">за рейтингом</option>
+            <option value="sale">спочатку знижки</option>
+          </select>
+        </label>
+      </div>
+      <div class="active-chips" id="activeChips"></div>
+      <div id="seasons"></div>
+    </div>
+  </div>
+
+  <!-- ============ РОЗМІРИ ============ -->
+  <section id="sizes" class="zone info" data-zone="base">
+    <div class="wrap">
+      <h2 class="section-title">📏 Таблиця розмірів</h2>
+      <p class="muted">Не впевнені щодо розміру? Віва-бот підбере його за двома цифрами. <button class="link-btn" data-bot-open="size">Підібрати розмір →</button></p>
+      <div class="size-tables">
+        <div class="card-flat">
+          <h3>Жінкам</h3>
+          <table><thead><tr><th>Розмір</th><th>Груди, см</th><th>Талія, см</th><th>Стегна, см</th></tr></thead>
+          <tbody><tr><td>XS</td><td>78–81</td><td>60–63</td><td>86–89</td></tr><tr><td>S</td><td>82–87</td><td>64–69</td><td>90–95</td></tr><tr><td>M</td><td>88–93</td><td>70–75</td><td>96–101</td></tr><tr><td>L</td><td>94–99</td><td>76–81</td><td>102–107</td></tr><tr><td>XL</td><td>100–105</td><td>82–87</td><td>108–113</td></tr></tbody></table>
+        </div>
+        <div class="card-flat">
+          <h3>Чоловікам</h3>
+          <table><thead><tr><th>Розмір</th><th>Груди, см</th><th>Талія, см</th><th>Зріст, см</th></tr></thead>
+          <tbody><tr><td>S</td><td>86–91</td><td>74–79</td><td>170–176</td></tr><tr><td>M</td><td>92–98</td><td>80–85</td><td>176–182</td></tr><tr><td>L</td><td>99–104</td><td>86–91</td><td>176–182</td></tr><tr><td>XL</td><td>105–110</td><td>92–97</td><td>182–188</td></tr><tr><td>XXL</td><td>111–116</td><td>98–103</td><td>182–188</td></tr></tbody></table>
+        </div>
+        <div class="card-flat">
+          <h3>Дітям</h3>
+          <table><thead><tr><th>Розмір (зріст)</th><th>Вік</th><th>Груди, см</th></tr></thead>
+          <tbody><tr><td>98–104</td><td>3–4 роки</td><td>52–54</td></tr><tr><td>110–116</td><td>5–6 років</td><td>56–58</td></tr><tr><td>122–128</td><td>7–8 років</td><td>60–64</td></tr><tr><td>134–140</td><td>9–10 років</td><td>66–70</td></tr><tr><td>146–152</td><td>11–12 років</td><td>72–76</td></tr></tbody></table>
+          <p class="muted small">Шапки: 48–50 см — 2–5 років, 52–54 см — 6–12 років.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ ДОСТАВКА ============ -->
+  <section id="delivery" class="zone info" data-zone="base">
+    <div class="wrap">
+      <h2 class="section-title">🚚 Доставка й оплата</h2>
+      <div class="info-grid">
+        <div class="card-flat"><span class="big-emoji">📦</span><h3>Нова Пошта</h3><p>Відділення або поштомат, 1–3 дні. Безкоштовно від 1500 ₴, інакше — за тарифами перевізника.</p></div>
+        <div class="card-flat"><span class="big-emoji">🛵</span><h3>Кур'єр</h3><p>Адресна доставка Новою Поштою у великих містах, 1–2 дні.</p></div>
+        <div class="card-flat"><span class="big-emoji">✉️</span><h3>Укрпошта</h3><p>Найдешевший варіант: 3–5 днів у будь-який куточок України.</p></div>
+        <div class="card-flat"><span class="big-emoji">💳</span><h3>Оплата</h3><p>Накладений платіж при отриманні або переказ на картку після підтвердження замовлення менеджером.</p></div>
+      </div>
+      <h2 class="section-title" style="margin-top:48px">↩️ Обмін і повернення</h2>
+      <div class="steps">
+        <div><b>1</b><p>Напишіть Віва-боту або зателефонуйте протягом 14 днів після отримання.</p></div>
+        <div><b>2</b><p>Збережіть бирки та товарний вигляд речі.</p></div>
+        <div><b>3</b><p>Відправте посилку Новою Поштою за нашою адресою.</p></div>
+        <div><b>4</b><p>Отримайте гроші на картку протягом 3 робочих днів.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ ПРО НАС ============ -->
+  <section id="about" class="zone info" data-zone="base">
+    <div class="wrap about">
+      <div>
+        <h2 class="section-title">🎼 Про нас</h2>
+        <p>У 1725 році Антоніо Вівальді видав чотири скрипкові концерти, що змальовують весну, літо, осінь і зиму. Майже триста років по тому ми подумали: одяг теж має свої сезони, свій ритм і свій настрій.</p>
+        <p>«Вівальді» — український магазин одягу масмаркет-сегменту для всієї родини. Кожна колекція — як частина концерту: легка весна, яскраве літо, тепла осінь і затишна зима.</p>
+        <p>Ми обираємо практичні тканини — льон, бавовну, вовну, фліс і мембрану — і перевіряємо, як речі поводяться після прання. Щоб одяг служив не один сезон, а кілька.</p>
+      </div>
+      <div>
+      <img src="images/logo-v1.svg" alt="Логотип «Вівальді»: скрипка, обвита ниткою" class="about-logo" onerror="this.remove()">
+      <div class="stats">
+        <div><b>36</b><span>моделей у колекції</span></div>
+        <div><b>4</b><span>сезони</span></div>
+        <div><b>3</b><span>лінії: жінки, чоловіки, діти</span></div>
+        <div><b>4,8★</b><span>середня оцінка покупців</span></div>
+      </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ ВІДГУКИ ============ -->
+  <section id="reviews" class="zone info" data-zone="base">
+    <div class="wrap">
+      <h2 class="section-title">💬 Відгуки покупців</h2>
+      <div class="reviews">
+        <figure class="card-flat"><div class="stars">★★★★★</div><blockquote>Купила пуховик «L'Inverno» і собі, і доньці комбінезон. Тепло, легко, а доставка прийшла за день!</blockquote><figcaption>Оксана, Київ</figcaption></figure>
+        <figure class="card-flat"><div class="stars">★★★★★</div><blockquote>Лляна сорочка — просто порятунок у спеку. Розмір підказав бот, підійшов ідеально.</blockquote><figcaption>Андрій, Одеса</figcaption></figure>
+        <figure class="card-flat"><div class="stars">★★★★☆</div><blockquote>Светр «Гарбузовий лате» — любов з першого погляду. Мінус одна зірка: хочу ще більше кольорів 🙂</blockquote><figcaption>Марія, Львів</figcaption></figure>
+        <figure class="card-flat"><div class="stars">★★★★★</div><blockquote>Взяв худі «Осінній вітер» і джинси «Жовтень». Тканина щільна, після прання не сіла й не полиняла. За такі гроші — дуже гідно.</blockquote><figcaption>Дмитро, Харків</figcaption></figure>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- ============ КОНТАКТИ / ПІДВАЛ ============ -->
+<footer id="contacts" class="zone footer" data-zone="base">
+  <div class="wrap footer-grid">
+    <div>
+      <div class="footer-logo"><img src="images/logo-v1.svg" alt="" onerror="this.remove()">Вівальді</div>
+      <p class="muted">Одяг чотирьох сезонів для всієї родини.</p>
+      <a class="big-phone" href="tel:0800167844">0 800 167 844</a>
+      <p class="muted small">1678 — рік народження Антоніо Вівальді, 44 — чотири сезони й чотири концерти 🎶<br>Дзвінки безкоштовні, щодня 9:00–21:00</p>
+    </div>
+    <div>
+      <h3>Покупцям</h3>
+      <ul>
+        <li><a href="#delivery">Доставка й оплата</a></li>
+        <li><a href="#delivery">Обмін і повернення</a></li>
+        <li><a href="#sizes">Таблиця розмірів</a></li>
+        <li><a href="#" data-fake="Подарункові сертифікати">Подарункові сертифікати</a></li>
+        <li><a href="#" data-fake="Програма лояльності">Програма лояльності «Скрипковий ключ»</a></li>
+      </ul>
+    </div>
+    <div>
+      <h3>Компанія</h3>
+      <ul>
+        <li><a href="#about">Про нас</a></li>
+        <li><a href="#" data-fake="Вакансії">Вакансії</a></li>
+        <li><a href="#" data-fake="Наші магазини">Наші магазини</a></li>
+        <li><a href="#" data-fake="Публічна оферта">Публічна оферта</a></li>
+        <li><a href="#" data-fake="Політика конфіденційності">Політика конфіденційності</a></li>
+      </ul>
+    </div>
+    <div>
+      <h3>Ми в соцмережах</h3>
+      <div class="socials">
+        <a href="#" data-fake="Instagram @vivaldi.wear" aria-label="Instagram">📸</a>
+        <a href="#" data-fake="Telegram-канал @vivaldi_wear" aria-label="Telegram">✈️</a>
+        <a href="#" data-fake="TikTok @vivaldi.wear" aria-label="TikTok">🎵</a>
+        <a href="#" data-fake="Facebook /vivaldi.wear" aria-label="Facebook">👍</a>
+        <a href="#" data-fake="YouTube «Вівальді»" aria-label="YouTube">▶️</a>
+      </div>
+      <p class="muted small">✉️ <a href="#" data-fake="Пошта hello@vivaldi.wear">hello@vivaldi.wear</a><br>📍 Київ, вул. Скрипкова, 4 (вигадана адреса)</p>
+    </div>
+  </div>
+  <div class="wrap copyright">© 2026 «Вівальді». Навчальний проєкт — магазин і товари вигадані.</div>
+</footer>
+
+<!-- ============ МОДАЛКА ТОВАРУ ============ -->
+<dialog id="pmodal" class="pmodal" aria-label="Картка товару"><div id="pmodalBody"></div></dialog>
+
+<!-- ============ КОШИК ============ -->
+<div class="overlay" id="overlay" hidden></div>
+<aside class="drawer" id="cart" aria-label="Кошик" aria-hidden="true">
+  <div class="drawer-head"><h2>🛒 Кошик</h2><button class="icon-btn" id="closeCart" aria-label="Закрити кошик">✕</button></div>
+  <div class="drawer-body" id="cartBody"></div>
+  <div class="drawer-foot" id="cartFoot"></div>
+</aside>
+
+<!-- ============ ВІВА-БОТ ============ -->
+<button class="to-top" id="toTop" aria-label="Нагору">↑</button>
+<div class="bot-hint" id="botHint">Привіт! Я допоможу оформити замовлення 👋</div>
+<button class="bot-fab" id="botFab" aria-label="Відкрити чат з Віва-ботом">🎻<span>Віва-бот</span></button>
+<section class="bot" id="bot" aria-label="Чат з Віва-ботом" hidden>
+  <div class="bot-head">
+    <div class="bot-ava">🎻</div>
+    <div><b>Віва-бот</b><small>● онлайн, відповідає миттєво</small></div>
+    <button class="icon-btn" id="botClose" aria-label="Закрити чат">✕</button>
+  </div>
+  <div class="bot-log" id="botLog" aria-live="polite"></div>
+  <div class="bot-quick" id="botQuick"></div>
+  <form class="bot-input" id="botForm">
+    <input id="botInput" autocomplete="off" placeholder="Напишіть повідомлення…" aria-label="Повідомлення">
+    <button aria-label="Надіслати">➤</button>
+  </form>
+</section>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+<script src="js/bot.js"></script>
+</body>
+</html>

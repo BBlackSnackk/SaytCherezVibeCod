@@ -1,0 +1,14 @@
+# Секрети — ніколи не публікувати
+gemini-key.txt
+*.key
+.env
+
+# Службові файли редакторів і ОС
+.claude/
+.vscode/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Вихідники, які не потрібні на сайті
+images/logo-original.jpg
