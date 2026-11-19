@@ -32,7 +32,8 @@ function photo(p, n = 1, label = false, hoverAlt = false) {
 }
 
 /* ===================== ФІЛЬТРИ ===================== */
-const F = { q: '', aud: new Set(), season: new Set(), cat: new Set(), size: new Set(), color: new Set(), min: null, max: null, inStock: false, sort: 'popular' };
+const F = { q: '', aud: new Set(), season: new Set(), cat: new Set(), size: new Set(), color: new Set(), min: null, max: null, inStock: false, sale: false, sort: 'popular' };
+const discount = p => p.old ? Math.round((1 - p.price / p.old) * 100) : 0;
 
 function matches(p, skip) {
   const q = F.q.trim().toLowerCase();
@@ -49,6 +50,7 @@ function matches(p, skip) {
   if (F.min != null && p.price < F.min) return false;
   if (F.max != null && p.price > F.max) return false;
   if (F.inStock && p.stock === 'out') return false;
+  if (F.sale && !p.old) return false;
   return true;
 }
 
@@ -82,7 +84,8 @@ function renderFilters() {
     <div class="fgroup"><h3>Розмір — діти (зріст)</h3><div class="chips">${kids.map(s => chip('size', s, s)).join('')}${heads.map(s => chip('size', s, '🧢 ' + s)).join('')}</div></div>
     <div class="fgroup"><h3>Колір</h3><div class="swatches">
       ${Object.entries(COLORS).map(([k, [n, hex]]) => `<button class="swatch ${F.color.has(k) ? 'on' : ''}" style="background:${hex}" data-f="color" data-v="${k}" title="${n}" aria-label="${n}" aria-pressed="${F.color.has(k)}"></button>`).join('')}</div></div>
-    <div class="fgroup"><label class="check"><input type="checkbox" id="inStock" ${F.inStock ? 'checked' : ''}> Лише в наявності</label></div>`;
+    <div class="fgroup"><label class="check"><input type="checkbox" id="inStock" ${F.inStock ? 'checked' : ''}> Лише в наявності</label>
+      <label class="check"><input type="checkbox" id="saleOnly" ${F.sale ? 'checked' : ''}> 🔥 Лише зі знижкою</label></div>`;
 }
 
 function renderActiveChips() {
@@ -95,6 +98,7 @@ function renderActiveChips() {
   if (F.min != null) list.push(['min', '', 'від ' + fmt(F.min)]);
   if (F.max != null) list.push(['max', '', 'до ' + fmt(F.max)]);
   if (F.inStock) list.push(['inStock', '', 'В наявності']);
+  if (F.sale) list.push(['sale', '', 'Зі знижкою']);
   if (F.q) list.push(['q', '', '«' + F.q + '»']);
   $('#activeChips').innerHTML = list.map(([f, v, l]) => `<button class="chip" data-rm="${f}" data-v="${v}">${esc(l)}</button>`).join('')
     + (list.length > 1 ? '<button class="link-btn" data-rm="all">Скинути все</button>' : '');
@@ -181,6 +185,7 @@ $('#filterBody').addEventListener('change', e => {
   const t = e.target;
   if (t.dataset.f === 'cat') { t.checked ? F.cat.add(t.dataset.v) : F.cat.delete(t.dataset.v); update(); }
   if (t.id === 'inStock') { F.inStock = t.checked; update(); }
+  if (t.id === 'saleOnly') { F.sale = t.checked; update(); }
   if (t.id === 'pmin' || t.id === 'pmax') {
     const v = t.value === '' ? null : Math.max(0, +t.value);
     F[t.id === 'pmin' ? 'min' : 'max'] = v;
@@ -194,13 +199,14 @@ document.addEventListener('click', e => {
   if (f === 'all') resetFilters();
   else if (F[f] instanceof Set) F[f].delete(r.dataset.v);
   else if (f === 'inStock') F.inStock = false;
+  else if (f === 'sale') F.sale = false;
   else if (f === 'q') { F.q = ''; $('#search').value = ''; }
   else F[f] = null;
   update();
 });
 function resetFilters() {
   ['aud', 'season', 'cat', 'size', 'color'].forEach(k => F[k].clear());
-  F.min = F.max = null; F.inStock = false; F.q = ''; $('#search').value = '';
+  F.min = F.max = null; F.inStock = false; F.sale = false; F.q = ''; $('#search').value = '';
 }
 $('#resetFilters').addEventListener('click', () => { resetFilters(); update(); });
 $('#sort').addEventListener('change', e => { F.sort = e.target.value; renderCatalog(); });
@@ -387,8 +393,31 @@ window.addEventListener('resize', syncHeader);
 window.addEventListener('scroll', () => $('#toTop').classList.toggle('show', scrollY > 900), { passive: true });
 $('#toTop').addEventListener('click', () => scrollTo({ top: 0 }));
 
+/* ===================== РЕКЛАМНИЙ БАНЕР ===================== */
+function renderPromo() {
+  const sale = PRODUCTS.filter(p => p.old && p.stock !== 'out').sort((a, b) => discount(b) - discount(a));
+  if (!sale.length) { $('#sale').hidden = true; $('[data-nav="sale"]').hidden = true; return; }
+  const n = sale.length;
+  const word = (n % 10 === 1 && n % 100 !== 11) ? 'модель' : (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)) ? 'моделі' : 'моделей';
+  $('#promoMax').textContent = `−${discount(sale[0])}%`;
+  $('#promoLead').textContent = `${n} ${word} для жінок, чоловіків і дітей за зниженими цінами — поки є ваші розміри.`;
+  $('#promoItems').innerHTML = sale.slice(0, 3).map(p => `
+    <button class="promo-item" data-open="${p.id}" aria-label="${esc(p.name)}, знижка ${discount(p)}%">
+      <span class="tag sale">−${discount(p)}%</span>
+      ${photo(p)}
+      <span class="promo-name">${esc(p.name)}</span>
+      <span class="promo-price"><b>${fmt(p.price)}</b> <s>${fmt(p.old)}</s></span>
+    </button>`).join('');
+}
+$('#showSale').addEventListener('click', () => {
+  resetFilters(); F.sale = true; F.sort = 'sale'; $('#sort').value = 'sale';
+  update(false);
+  scrollTo({ top: scrollY + $('.catalog-main').getBoundingClientRect().top - $('.header').offsetHeight - 12 });
+});
+
 /* ===================== СТАРТ ===================== */
 buildSeasons();
+renderPromo();
 update(false);
 renderCart();
 watchZones();
