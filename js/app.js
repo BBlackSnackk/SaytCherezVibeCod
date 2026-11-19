@@ -258,7 +258,8 @@ function renderProduct() {
         <div class="pm-colors">${p.colors.map(c => `<button class="swatch ${pm.color === c ? 'on' : ''}" style="background:${COLORS[c][1]}" data-color="${c}" title="${COLORS[c][0]}" aria-label="${COLORS[c][0]}"></button>`).join('')}</div>
 
         <span class="pm-label">Розмір ${p.aud === 'kids' && p.cat !== 'acc' ? '(зріст, см)' : ''} · <a href="#sizes" class="link-btn" data-close-modal style="text-transform:none">таблиця розмірів</a></span>
-        <div class="pm-sizes" id="pmSizes">${p.sizes.map(z => `<button class="size-btn ${pm.size === z ? 'on' : ''}" data-size="${z}">${z}</button>`).join('')}</div>
+        <div class="pm-sizes" id="pmSizes">${p.sizes.map(z => { const n = avail(p, z, pm.color); return `<button class="size-btn ${pm.size === z ? 'on' : ''}" data-size="${z}" ${n === 0 ? 'disabled title="Немає в цьому кольорі"' : ''}>${z}</button>`; }).join('')}</div>
+        ${pm.size && avail(p, pm.size, pm.color) <= 3 ? `<span class="stock low">Лишилось ${avail(p, pm.size, pm.color)} шт. у розмірі ${pm.size}</span>` : ''}
 
         <div class="pm-buy">
           <div class="qty"><button data-q="-1" aria-label="Менше">−</button><span>${pm.qty}</span><button data-q="1" aria-label="Більше">+</button></div>
@@ -281,12 +282,19 @@ function renderProduct() {
 $('#pmodal').addEventListener('click', e => {
   const t = e.target;
   if (t === $('#pmodal') || t.closest('[data-close-modal]')) { $('#pmodal').close(); return; }
-  const c = t.closest('[data-color]'); if (c) { pm.color = c.dataset.color; pm.img = pm.color === pm.p.colors[0] ? 1 : 2; renderProduct(); return; }
+  const c = t.closest('[data-color]'); if (c) {
+    pm.color = c.dataset.color; pm.img = pm.color === pm.p.colors[0] ? 1 : 2;
+    if (pm.size && avail(pm.p, pm.size, pm.color) === 0) pm.size = null; // цього розміру немає в новому кольорі
+    renderProduct(); return;
+  }
   const z = t.closest('[data-size]'); if (z) { pm.size = z.dataset.size; renderProduct(); return; }
   const im = t.closest('[data-img]'); if (im) { pm.img = +im.dataset.img; renderProduct(); return; }
   const q = t.closest('[data-q]'); if (q) { pm.qty = Math.min(10, Math.max(1, pm.qty + +q.dataset.q)); renderProduct(); return; }
   if (t.closest('#addToCart')) {
     if (!pm.size) { $('#pmSizes').classList.remove('shake'); void $('#pmSizes').offsetWidth; $('#pmSizes').classList.add('shake'); toast('Оберіть, будь ласка, розмір 📏'); return; }
+    const inCart = cart.filter(i => i.id === pm.p.id && i.size === pm.size && i.color === pm.color).reduce((s, i) => s + i.qty, 0);
+    const left = avail(pm.p, pm.size, pm.color) - inCart;
+    if (left < pm.qty) { toast(left > 0 ? `Доступно ще лише ${left} шт. у цьому розмірі й кольорі` : 'Усі доступні штуки вже у вашому кошику'); return; }
     addToCart(pm.p.id, pm.size, pm.color, pm.qty);
     $('#pmodal').close();
   }
@@ -393,6 +401,39 @@ window.addEventListener('resize', syncHeader);
 window.addEventListener('scroll', () => $('#toTop').classList.toggle('show', scrollY > 900), { passive: true });
 $('#toTop').addEventListener('click', () => scrollTo({ top: 0 }));
 
+/* ===================== ЖИВИЙ КАТАЛОГ ІЗ БАЗИ (Supabase) ===================== */
+// Скільки штук доступно в розмірі й кольорі. Без даних із бази — оцінка за статусом товару.
+function avail(p, size, color) {
+  if (!p.stockMap) return p.stock === 'out' ? 0 : 99;
+  return p.stockMap[size + '|' + color] ?? 0;
+}
+
+async function loadLiveCatalog() {
+  const cfg = window.VIV_CONFIG; if (!cfg) return;
+  try {
+    const r = await fetch(`${cfg.supabaseUrl}/rest/v1/catalog?select=*&order=sort`, {
+      headers: { apikey: cfg.supabaseKey, Authorization: 'Bearer ' + cfg.supabaseKey },
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const rows = await r.json();
+    if (!rows.length) return; // база ще порожня — лишаємо вбудований каталог
+    const live = rows.map(x => ({
+      id: x.id, season: x.season, aud: x.aud, cat: x.cat, emoji: x.emoji, name: x.name, price: x.price,
+      old: x.old_price || undefined, sizes: x.sizes, colors: x.colors, material: x.material, desc: x.description,
+      rating: Number(x.rating), reviews: x.reviews, stockMap: x.stock_map,
+      stock: x.stock_total === 0 ? 'out' : x.stock_total <= 5 ? 'low' : 'in',
+    }));
+    PRODUCTS.splice(0, PRODUCTS.length, ...live);
+    Object.keys(byId).forEach(k => delete byId[k]);
+    live.forEach(p => { byId[p.id] = p; });
+    cart = cart.filter(i => byId[i.id]); saveCart();
+    renderPromo(); update(false); renderCart();
+    if ($('#pmodal').open && byId[pm.p?.id]) { pm.p = byId[pm.p.id]; renderProduct(); }
+  } catch (e) {
+    console.warn('Каталог із бази недоступний — показуємо вбудований', e);
+  }
+}
+
 /* ===================== РЕКЛАМНИЙ БАНЕР ===================== */
 function renderPromo() {
   const sale = PRODUCTS.filter(p => p.old && p.stock !== 'out').sort((a, b) => discount(b) - discount(a));
@@ -422,3 +463,4 @@ update(false);
 renderCart();
 watchZones();
 syncHeader();
+loadLiveCatalog();

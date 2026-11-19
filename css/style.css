@@ -557,3 +557,6 @@ input:focus-visible, select:focus-visible { outline: none; }
   .promo-name { font-size: 12px; }
   .promo-price s { display: none; }
 }
+
+/* Розмір, якого немає в обраному кольорі */
+.size-btn:disabled { opacity: .35; text-decoration: line-through; cursor: not-allowed; border-style: dashed; }

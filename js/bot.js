@@ -108,7 +108,7 @@ const Bot = (() => {
     }
     st = { mode: 'order', step: 'name', data: {} };
     const list = cart.map(i => `<li>${esc(byId[i.id].name)} (${i.size}, ${COLORS[i.color][0]}) × ${i.qty}</li>`).join('');
-    say(`Чудово, оформлюємо! У кошику:<ul>${list}</ul>Разом: <b>${fmt(cartTotal())}</b><br><small>ℹ️ Це демонстраційний магазин: ваші дані залишаються лише у вашому браузері й нікуди не надсилаються.</small>`);
+    say(`Чудово, оформлюємо! У кошику:<ul>${list}</ul>Разом: <b>${fmt(cartTotal())}</b><br><small>ℹ️ Навчальний проєкт: ім'я й телефон потраплять у CRM магазину, але оплати й доставки не буде. Не вказуйте справжніх даних, якщо не хочете.</small>`);
     say('Як до вас звертатися? Напишіть ім\'я та прізвище.', ['Скасувати']);
   }
 
@@ -165,14 +165,33 @@ const Bot = (() => {
     }
   }
 
-  function finish() {
-    const num = 'VIV-' + Math.floor(10000 + Math.random() * 89999);
-    const order = { num, ...st.data, items: cart, total: cartTotal(), date: new Date().toISOString() };
-    const orders = store.get('vivaldi-orders', []);
-    orders.push(order); store.set('vivaldi-orders', orders);
-    cart = []; saveCart(); renderCart();
+  // Замовлення йде в базу Supabase: ціни перераховуються на сервері, залишки списуються.
+  async function finish() {
+    const d = st.data, cfg = window.VIV_CONFIG;
     st = { mode: null, step: null, data: {} };
-    say(`🎉 Замовлення <b>${num}</b> оформлено!<br>У справжньому магазині менеджер зателефонував би на ${order.phone}, щоб підтвердити деталі.<br><small>ℹ️ Це демонстраційний магазин: замовлення нікуди не надсилається, оплата й доставка не відбудуться.</small>`);
+    if (!cfg) { say('😔 Зараз не вдається оформити замовлення. Спробуйте пізніше або зателефонуйте нам.', MENU); return; }
+    say('⏳ Оформлюю замовлення…');
+    let res;
+    try {
+      const r = await fetch(`${cfg.supabaseUrl}/rest/v1/rpc/place_order`, {
+        method: 'POST',
+        headers: { apikey: cfg.supabaseKey, Authorization: 'Bearer ' + cfg.supabaseKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          p_name: d.name, p_phone: d.phone.replace(/\s/g, ''), p_city: d.city, p_delivery: d.delivery,
+          p_address: d.address, p_payment: d.pay, p_items: cart.map(i => ({ id: i.id, size: i.size, color: i.color, qty: i.qty })),
+        }),
+      });
+      res = await r.json();
+      if (!r.ok) throw new Error(res.message || 'помилка сервера');
+    } catch (e) {
+      const why = e instanceof TypeError ? 'немає зв\'язку з сервером' : e.message;
+      say(`😔 Не вдалося оформити замовлення: ${esc(why)}.<br>Кошик збережено — можна змінити розмір чи колір і спробувати ще раз.`, ['🛒 Оформити замовлення', '👩‍💼 Зв\'язатися з людиною']);
+      if (typeof loadLiveCatalog === 'function') loadLiveCatalog();
+      return;
+    }
+    cart = []; saveCart(); renderCart();
+    if (typeof loadLiveCatalog === 'function') loadLiveCatalog(); // оновити залишки на сайті
+    say(`🎉 Замовлення <b>${esc(res.number)}</b> на <b>${fmt(res.total)}</b> прийнято!<br>Менеджер зателефонує на ${esc(d.phone)}, щоб підтвердити деталі.<br><small>ℹ️ Навчальний проєкт: замовлення потрапляє в CRM магазину, але оплати й доставки не буде.</small>`);
     say('Дякуємо, що обрали «Вівальді»! Нехай кожен сезон буде затишним 🎻', ['📏 Підібрати розмір', '🚚 Доставка й оплата']);
   }
 

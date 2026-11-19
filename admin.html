@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Вівальді CRM</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/svg+xml" href="images/logo-v1.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Prata&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+
+<!-- ============ ВХІД ============ -->
+<section class="login" id="loginView" hidden>
+  <form class="login-card" id="loginForm" novalidate>
+    <img src="images/logo-v1.svg" alt="" class="login-logo">
+    <h1>Вівальді CRM</h1>
+    <p class="muted">Вхід для співробітників магазину</p>
+    <label>Email<input type="email" id="loginEmail" autocomplete="username" required></label>
+    <label>Пароль<input type="password" id="loginPass" autocomplete="current-password" required></label>
+    <p class="form-error" id="loginError" role="alert"></p>
+    <button class="btn btn-primary" type="submit" id="loginBtn">Увійти</button>
+    <a href="./" class="muted small">← На сайт магазину</a>
+  </form>
+</section>
+
+<!-- ============ ЗАСТОСУНОК ============ -->
+<div class="app" id="appView" hidden>
+  <aside class="side">
+    <a href="./" class="brand" title="Відкрити сайт магазину"><img src="images/logo-v1.svg" alt=""><span>Вівальді <b>CRM</b></span></a>
+    <nav class="nav" aria-label="Розділи CRM">
+      <button data-view="orders" class="on">📦 Замовлення <span class="pill" id="newCount" hidden></span></button>
+      <button data-view="customers">👥 Клієнти</button>
+      <button data-view="products" data-admin>👕 Товари й залишки</button>
+      <button data-view="stats" data-admin>📊 Статистика</button>
+    </nav>
+    <div class="me">
+      <div><b id="meName"></b><small id="meRole"></small></div>
+      <button class="link" id="logoutBtn">Вийти</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <h1 id="viewTitle">Замовлення</h1>
+      <div class="top-actions">
+        <span class="muted small" id="updatedAt"></span>
+        <button class="btn btn-ghost" id="refreshBtn">↻ Оновити</button>
+      </div>
+    </header>
+
+    <!-- Замовлення -->
+    <section class="view" id="view-orders">
+      <div class="toolbar">
+        <div class="chips" id="statusChips"></div>
+        <input type="search" class="search" id="orderSearch" placeholder="Пошук: номер, ім'я, телефон, ТТН">
+      </div>
+      <div class="table-wrap"><table class="table" id="ordersTable"></table></div>
+    </section>
+
+    <!-- Клієнти -->
+    <section class="view" id="view-customers" hidden>
+      <div class="toolbar"><input type="search" class="search" id="customerSearch" placeholder="Пошук: ім'я, телефон, місто"></div>
+      <div class="table-wrap"><table class="table" id="customersTable"></table></div>
+    </section>
+
+    <!-- Товари -->
+    <section class="view" id="view-products" hidden>
+      <div class="toolbar">
+        <div class="chips" id="productChips"></div>
+        <input type="search" class="search" id="productSearch" placeholder="Пошук товару">
+      </div>
+      <div class="empty-state" id="importBox" hidden>
+        <h2>Каталог у базі порожній</h2>
+        <p class="muted">Імпортуйте 36 товарів із сайту. Для кожного розміру й кольору буде створено стартовий залишок.</p>
+        <button class="btn btn-primary" id="importBtn">Імпортувати каталог</button>
+      </div>
+      <div class="table-wrap"><table class="table" id="productsTable"></table></div>
+    </section>
+
+    <!-- Статистика -->
+    <section class="view" id="view-stats" hidden>
+      <div class="toolbar">
+        <div class="chips" id="periodChips">
+          <button class="chip" data-period="7">7 днів</button>
+          <button class="chip on" data-period="30">30 днів</button>
+          <button class="chip" data-period="0">Увесь час</button>
+        </div>
+      </div>
+      <div id="statsBody"></div>
+    </section>
+  </main>
+</div>
+
+<!-- Бічна панель з деталями -->
+<div class="overlay" id="overlay" hidden></div>
+<aside class="panel" id="panel" aria-hidden="true">
+  <button class="panel-close" id="panelClose" aria-label="Закрити">✕</button>
+  <div id="panelBody"></div>
+</aside>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="js/config.js"></script>
+<script src="js/data.js"></script>
+<script src="js/admin.js"></script>
+</body>
+</html>
