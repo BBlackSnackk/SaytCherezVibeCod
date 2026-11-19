@@ -109,6 +109,70 @@ left join lateral (
 ) s on true
 where p.active;
 
+-- ---------- 7а. Сповіщення про нові замовлення в Telegram ----------
+-- Токен бота й ID чату зберігаються в Supabase Vault (зашифровано), а не в коді:
+--   select vault.create_secret('ТОКЕН_ВІД_BOTFATHER', 'telegram_bot_token');
+--   select vault.create_secret('ВАШ_CHAT_ID', 'telegram_chat_id');
+-- Якщо секретів немає, сповіщення просто не надсилаються — замовлення працюють як завжди.
+create extension if not exists pg_net with schema extensions;
+
+create or replace function public.tg_html(t text) returns text
+language sql immutable as $$ select replace(replace(replace(coalesce(t, ''), '&', '&amp;'), '<', '&lt;'), '>', '&gt;') $$;
+
+-- Сервер бази не може напряму з'єднатися з api.telegram.org (обмеження мережі Supabase),
+-- тому повідомлення надсилає Edge Function supabase/functions/notify-order.
+-- Кожне замовлення «забирається» для сповіщення рівно один раз (notified_at) — повторні
+-- виклики функції нічого не надсилають, тож засипати бота повідомленнями неможливо.
+alter table public.orders add column if not exists notified_at timestamptz;
+
+create or replace function public.tg_claim_order(p_order bigint) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare
+  v_token text; v_chat text; o public.orders%rowtype; c public.customers%rowtype; v_items text;
+  colors jsonb := '{"white":"білий","black":"чорний","grey":"сірий","beige":"бежевий","brown":"коричневий","olive":"оливковий",
+    "green":"зелений","mint":"м''ятний","yellow":"жовтий","orange":"помаранчевий","red":"червоний","pink":"рожевий",
+    "lightblue":"блакитний","blue":"синій","navy":"темно-синій"}';
+begin
+  select decrypted_secret into v_token from vault.decrypted_secrets where name = 'telegram_bot_token';
+  select decrypted_secret into v_chat  from vault.decrypted_secrets where name = 'telegram_chat_id';
+  if v_token is null or v_chat is null then return null; end if;
+
+  update public.orders set notified_at = now() where id = p_order and notified_at is null returning * into o;
+  if not found then return null; end if;   -- вже сповіщено або немає такого замовлення
+  select * into c from public.customers where id = o.customer_id;
+  select string_agg(format('• %s — %s, %s × %s = %s ₴', tg_html(i.name), tg_html(i.size),
+           coalesce(colors->>i.color, i.color), i.qty, replace(to_char(i.qty * i.price, 'FM999,999,990'), ',', ' ')), E'\n' order by i.id)
+    into v_items from public.order_items i where i.order_id = p_order;
+
+  return jsonb_build_object(
+      'token', v_token, 'chat_id', v_chat,
+      'text', format(E'🛍 <b>Нове замовлення %s</b>\n💰 <b>%s ₴</b>%s\n\n👤 %s\n📞 %s\n📍 %s, %s\n🚚 %s\n💳 %s\n\n%s\n\n<a href="https://bblacksnackk.github.io/SaytCherezVibeCod/admin.html#orders">Відкрити в CRM</a>',
+        o.number, replace(to_char(o.items_total, 'FM999,999,990'), ',', ' '),
+        case when o.delivery_free then ' · доставка безкоштовна' else '' end,
+        tg_html(c.name), c.phone, tg_html(o.city), tg_html(o.address),
+        tg_html(regexp_replace(o.delivery, '^[^[:alpha:]]+', '')), tg_html(regexp_replace(o.payment, '^[^[:alpha:]]+', '')),
+        coalesce(v_items, '')));
+end $$;
+
+-- Викликає Edge Function (вона в іншій мережі, звідки Telegram доступний).
+create or replace function public.notify_new_order(p_order bigint) returns void
+language plpgsql security definer set search_path = public, extensions as $$
+begin
+  perform net.http_post(
+    url := 'https://minfnmzpkbfizyieynmt.supabase.co/functions/v1/notify-order',
+    body := jsonb_build_object('order_id', p_order),
+    -- публічний anon-ключ (той самий, що в js/config.js) — потрібен Edge Function для перевірки JWT
+    headers := jsonb_build_object('Content-Type', 'application/json', 'Authorization',
+      'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1pbmZubXpwa2JmaXp5aWV5bm10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTUwNTkyOTIsImV4cCI6MjExMDYzNTI5Mn0.BsgtlkMrOrDUAwhk9xVagrhMnqCtA6uGhoKU1bpjwo8'),
+    timeout_milliseconds := 10000);
+end $$;
+
+-- Ці функції не можна викликати з сайту. tg_claim_order доступна лише Edge Function (service_role).
+revoke all on function public.notify_new_order(bigint) from public, anon, authenticated;
+revoke all on function public.tg_claim_order(bigint) from public, anon, authenticated;
+grant execute on function public.tg_claim_order(bigint) to service_role;
+revoke all on function public.tg_html(text) from public, anon, authenticated;
+
 -- ---------- 7. Оформлення замовлення з сайту ----------
 -- Ціни беруться з бази (не з браузера), залишки списуються атомарно.
 create or replace function public.place_order(
@@ -169,6 +233,13 @@ begin
      set items_total = v_total,
          delivery_free = v_total >= 1500 and p_delivery not ilike '%кур%'
    where id = v_order;
+
+  -- сповіщення в Telegram; якщо воно не вдасться, замовлення однаково зберігається
+  begin
+    perform public.notify_new_order(v_order);
+  exception when others then
+    raise warning 'Telegram: %', sqlerrm;
+  end;
 
   return jsonb_build_object('number', v_num, 'total', v_total);
 end $$;
