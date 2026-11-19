@@ -413,8 +413,7 @@ window.addEventListener('resize', syncHeader);
     if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;       // тачпад і так гортає вбік
     const max = row.scrollWidth - row.clientWidth;
     if (max <= 0) return;                                       // усе вміщається — гортати нічого
-    if ((e.deltaY < 0 && row.scrollLeft <= 0) || (e.deltaY > 0 && row.scrollLeft >= max - 1)) return; // край — гортаємо сторінку
-    e.preventDefault();
+    e.preventDefault();                                         // над меню сторінка не прокручується, навіть на краю
     row.scrollLeft += e.deltaY * (e.deltaMode === 1 ? 32 : 1);  // deltaMode 1 — рядки (Firefox)
   }, { passive: false });
   row.addEventListener('scroll', edges, { passive: true });
