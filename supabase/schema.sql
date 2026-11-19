@@ -83,6 +83,8 @@ create index if not exists orders_created_idx on public.orders (created_at desc)
 create index if not exists orders_customer_idx on public.orders (customer_id);
 -- Мова, якою покупець оформив замовлення на сайті (щоб менеджер відповідав тією ж мовою)
 alter table public.orders add column if not exists lang text not null default 'uk' check (lang in ('uk', 'ru', 'en'));
+-- Коли замовлення завершилось (отримане / повернення / скасоване). Через 48 год після цього ТТН очищається.
+alter table public.orders add column if not exists closed_at timestamptz;
 
 create table if not exists public.order_items (
   id         bigint generated always as identity primary key,
@@ -277,6 +279,12 @@ begin
       from public.order_items i
      where i.order_id = new.id and s.product_id = i.product_id and s.size = i.size and s.color = i.color;
   end if;
+  -- коли замовлення завершилось (отримане / повернення / скасоване) — для автоочищення ТТН
+  if new.status in ('delivered', 'returned', 'cancelled') then
+    if new.status is distinct from old.status then new.closed_at := now(); end if;
+  else
+    new.closed_at := null;
+  end if;
   new.updated_at := now();
   return new;
 end $$;
@@ -362,3 +370,44 @@ create policy "product images: admin delete" on storage.objects for delete to au
 
 -- Товар, який уже замовляли, видалити не можна (історія замовлень) — його можна лише приховати.
 -- Це гарантує зовнішній ключ order_items.product_id → products.id.
+
+-- ---------- 11. Очищення ТТН завершених замовлень ----------
+-- ТТН потрібна, поки посилка в дорозі. У завершених замовленнях (отримане / повернення / скасоване)
+-- вона лише накопичується, тому:
+--   • кнопка в CRM «Очистити ТТН» прибирає ТТН з усіх завершених замовлень одразу;
+--   • щогодини база сама прибирає ТТН із замовлень, завершених понад 48 годин тому.
+-- Замовлення в роботі (нове / підтверджене / відправлене) не зачіпаються.
+
+-- Для вже завершених замовлень момент завершення невідомий — беремо час останньої зміни
+update public.orders set closed_at = updated_at
+ where closed_at is null and status in ('delivered', 'returned', 'cancelled');
+
+-- Кнопка в CRM (будь-який співробітник). Повертає кількість очищених ТТН.
+create or replace function public.clear_finished_ttn() returns int
+language plpgsql security definer set search_path = public as $$
+declare n int;
+begin
+  if not public.is_staff() then raise exception 'Немає доступу'; end if;
+  update public.orders set ttn = null
+   where ttn is not null and status in ('delivered', 'returned', 'cancelled');
+  get diagnostics n = row_count;
+  return n;
+end $$;
+revoke all on function public.clear_finished_ttn() from public, anon;
+grant execute on function public.clear_finished_ttn() to authenticated;
+
+-- Автоочищення: лише для планувальника (pg_cron), з сайту чи CRM викликати не можна.
+create or replace function public.cleanup_old_ttn() returns int
+language plpgsql security definer set search_path = public as $$
+declare n int;
+begin
+  update public.orders set ttn = null
+   where ttn is not null and status in ('delivered', 'returned', 'cancelled')
+     and closed_at < now() - interval '48 hours';
+  get diagnostics n = row_count;
+  return n;
+end $$;
+revoke all on function public.cleanup_old_ttn() from public, anon, authenticated;
+
+create extension if not exists pg_cron;
+select cron.schedule('vivaldi-cleanup-ttn', '17 * * * *', 'select public.cleanup_old_ttn()');  -- щогодини о :17

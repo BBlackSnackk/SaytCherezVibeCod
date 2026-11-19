@@ -180,7 +180,7 @@ function openOrder(id) {
       </div>
       <p class="small muted">${o.ttn ? `<a href="https://novaposhta.ua/tracking/?cargo_number=${esc(o.ttn)}" target="_blank" rel="noopener">Відстежити посилку на сайті Нової Пошти →</a>` : 'ТТН — 14 цифр. Після збереження з’явиться посилання для відстеження.'}</p>
       <label>Нотатка менеджера<textarea id="oNote" maxlength="1000" placeholder="Напр.: клієнт просив зателефонувати після 18:00">${esc(o.manager_note || '')}</textarea></label>
-      <p class="small muted">Статуси «Скасований» і «Повернення» автоматично повертають товари на склад.</p>
+      <p class="small muted">Статуси «Скасований» і «Повернення» автоматично повертають товари на склад.${o.ttn && FINISHED.includes(o.status) ? ` ТТН цього замовлення автоматично очиститься ${ttnClearsAt(o)}.` : ''}</p>
       <div class="actions"><button class="btn btn-primary" type="submit">Зберегти</button></div>
     </form>`);
 
@@ -196,6 +196,30 @@ function openOrder(id) {
     await loadAll(); openOrder(o.id);
   });
 }
+
+/* ---------- Очищення ТТН ----------
+   ТТН потрібна, поки посилка в дорозі. У завершених замовленнях база сама прибирає її
+   через 48 год після завершення (pg_cron, щогодини), а кнопка — одразу. Замовлення в роботі не зачіпаються. */
+const FINISHED = ['delivered', 'returned', 'cancelled'];
+function ttnClearsAt(o) {
+  const at = new Date(new Date(o.closed_at || o.updated_at).getTime() + 48 * 3600e3);
+  if (at <= new Date()) return 'протягом години';
+  return 'після ' + at.toLocaleString('uk-UA', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+$('#clearTtnBtn').addEventListener('click', async () => {
+  const list = S.orders.filter(o => o.ttn && FINISHED.includes(o.status));
+  if (!list.length) { toast('Немає ТТН для очищення: у завершених замовленнях їх уже немає'); return; }
+  const active = S.orders.filter(o => o.ttn && !FINISHED.includes(o.status)).length;
+  if (!confirm(`Очистити ТТН у ${list.length} завершених замовленнях (отримані, повернення, скасовані)?\n\n`
+    + (active ? `${active} ТТН замовлень у роботі залишаться — ці посилки ще потрібно відстежувати.\n\n` : '')
+    + 'Самі замовлення не видаляються. Скасувати очищення не можна.')) return;
+  const btn = $('#clearTtnBtn'); btn.disabled = true;
+  const { data, error } = await db.rpc('clear_finished_ttn');
+  btn.disabled = false;
+  if (error) { toast('Не вдалося очистити: ' + error.message, true); return; }
+  toast(`Очищено ТТН: ${data}`);
+  await loadAll();
+});
 
 /* ===================== КЛІЄНТИ ===================== */
 function customerStats(c) {
