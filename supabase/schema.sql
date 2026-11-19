@@ -81,6 +81,8 @@ create table if not exists public.orders (
 );
 create index if not exists orders_created_idx on public.orders (created_at desc);
 create index if not exists orders_customer_idx on public.orders (customer_id);
+-- Мова, якою покупець оформив замовлення на сайті (щоб менеджер відповідав тією ж мовою)
+alter table public.orders add column if not exists lang text not null default 'uk' check (lang in ('uk', 'ru', 'en'));
 
 create table if not exists public.order_items (
   id         bigint generated always as identity primary key,
@@ -100,13 +102,15 @@ create index if not exists order_items_order_idx on public.order_items (order_id
 -- Фото, завантажені з CRM (Supabase Storage). Якщо порожньо — сайт бере images/products/<код>-1.jpg / -2.jpg.
 alter table public.products add column if not exists image1 text;   -- на моделі
 alter table public.products add column if not exists image2 text;   -- усі кольори / без моделі
+-- Переклади для сайту: {"ru": {"name", "desc", "material"}, "en": {...}}. Порожнє поле — показується українською.
+alter table public.products add column if not exists i18n jsonb not null default '{}'::jsonb;
 
 create or replace view public.catalog as
 select p.id, p.season, p.aud, p.cat, p.emoji, p.name, p.price, p.old_price, p.sizes, p.colors,
        p.material, p.description, p.rating, p.reviews, p.sort,
        coalesce(s.total, 0)              as stock_total,
        coalesce(s.map, '{}'::jsonb)      as stock_map,    -- {"M|beige": 4, ...}
-       p.image1, p.image2
+       p.image1, p.image2, p.i18n
 from public.products p
 left join lateral (
   select sum(qty)::int as total, jsonb_object_agg(size || '|' || color, qty) as map
@@ -151,11 +155,12 @@ begin
 
   return jsonb_build_object(
       'token', v_token, 'chat_id', v_chat,
-      'text', format(E'🛍 <b>Нове замовлення %s</b>\n💰 <b>%s ₴</b>%s\n\n👤 %s\n📞 %s\n📍 %s, %s\n🚚 %s\n💳 %s\n\n%s\n\n<a href="https://bblacksnackk.github.io/SaytCherezVibeCod/admin.html#orders">Відкрити в CRM</a>',
+      'text', format(E'🛍 <b>Нове замовлення %s</b>\n💰 <b>%s ₴</b>%s\n\n👤 %s\n📞 %s\n📍 %s, %s\n🚚 %s\n💳 %s%s\n\n%s\n\n<a href="https://bblacksnackk.github.io/SaytCherezVibeCod/admin.html#orders">Відкрити в CRM</a>',
         o.number, replace(to_char(o.items_total, 'FM999,999,990'), ',', ' '),
         case when o.delivery_free then ' · доставка безкоштовна' else '' end,
         tg_html(c.name), c.phone, tg_html(o.city), tg_html(o.address),
         tg_html(regexp_replace(o.delivery, '^[^[:alpha:]]+', '')), tg_html(regexp_replace(o.payment, '^[^[:alpha:]]+', '')),
+        case o.lang when 'ru' then E'\n🌐 Мова покупця: російська' when 'en' then E'\n🌐 Мова покупця: англійська' else '' end,
         coalesce(v_items, '')));
 end $$;
 
@@ -180,8 +185,11 @@ revoke all on function public.tg_html(text) from public, anon, authenticated;
 
 -- ---------- 7. Оформлення замовлення з сайту ----------
 -- Ціни беруться з бази (не з браузера), залишки списуються атомарно.
+-- Стара версія без мови (7 параметрів) — прибираємо, щоб не було двох однойменних функцій.
+drop function if exists public.place_order(text, text, text, text, text, text, jsonb);
 create or replace function public.place_order(
-  p_name text, p_phone text, p_city text, p_delivery text, p_address text, p_payment text, p_items jsonb
+  p_name text, p_phone text, p_city text, p_delivery text, p_address text, p_payment text, p_items jsonb,
+  p_lang text default 'uk'
 ) returns jsonb
 language plpgsql security definer set search_path = public as $$
 declare
@@ -194,6 +202,7 @@ begin
   if length(p_city) < 2 or length(p_city) > 60 then raise exception 'Вкажіть місто'; end if;
   if length(p_address) < 1 or length(p_address) > 120 then raise exception 'Вкажіть адресу або відділення'; end if;
   if length(p_delivery) > 60 or length(p_payment) > 60 then raise exception 'Невірний спосіб доставки чи оплати'; end if;
+  if p_lang is null or p_lang not in ('uk', 'ru', 'en') then p_lang := 'uk'; end if;
   if jsonb_typeof(p_items) <> 'array' or jsonb_array_length(p_items) = 0 or jsonb_array_length(p_items) > 20 then
     raise exception 'Кошик порожній або завеликий';
   end if;
@@ -212,8 +221,8 @@ begin
     exit when not exists (select 1 from public.orders where number = v_num);
   end loop;
 
-  insert into public.orders (number, customer_id, delivery, city, address, payment)
-  values (v_num, v_customer, p_delivery, p_city, p_address, p_payment)
+  insert into public.orders (number, customer_id, delivery, city, address, payment, lang)
+  values (v_num, v_customer, p_delivery, p_city, p_address, p_payment, p_lang)
   returning id into v_order;
 
   for it in select * from jsonb_array_elements(p_items) loop
@@ -332,8 +341,8 @@ grant select on public.order_items to authenticated;
 -- Відвідувачі сайту (anon) бачать лише каталог і можуть лише оформити замовлення.
 revoke all on public.staff, public.products, public.stock, public.customers, public.orders, public.order_items from anon;
 grant select on public.catalog to anon, authenticated;
-revoke all on function public.place_order(text, text, text, text, text, text, jsonb) from public;
-grant execute on function public.place_order(text, text, text, text, text, text, jsonb) to anon, authenticated;
+revoke all on function public.place_order(text, text, text, text, text, text, jsonb, text) from public;
+grant execute on function public.place_order(text, text, text, text, text, text, jsonb, text) to anon, authenticated;
 
 -- ---------- 10. Сховище фото товарів (Supabase Storage) ----------
 -- Публічний бакет: фото бачать усі відвідувачі сайту, завантажувати й видаляти — лише адміністратор.

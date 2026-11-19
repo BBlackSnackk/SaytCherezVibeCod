@@ -120,6 +120,8 @@ $('#panelBody').addEventListener('click', e => {
 });
 
 /* ===================== ЗАМОВЛЕННЯ ===================== */
+const LANG_NAME = { uk: 'українська', ru: 'російська', en: 'англійська' };
+const langTag = l => (l && l !== 'uk' ? ` <span class="lang-tag" title="Замовлення оформлено мовою: ${LANG_NAME[l] || l}">${l === 'ru' ? 'РУС' : 'ENG'}</span>` : '');
 function renderOrders() {
   const counts = { all: S.orders.length };
   S.orders.forEach(o => { counts[o.status] = (counts[o.status] || 0) + 1; });
@@ -133,7 +135,7 @@ function renderOrders() {
   $('#ordersTable').innerHTML = `<thead><tr><th>Номер</th><th>Дата</th><th>Клієнт</th><th>Телефон</th><th class="right">Шт.</th>
     <th class="right">Сума</th><th>Доставка</th><th>Статус</th><th>ТТН</th></tr></thead><tbody>${list.length ? list.map(o => `
     <tr data-order="${o.id}">
-      <td class="strong">${esc(o.number)}</td>
+      <td class="strong">${esc(o.number)}${langTag(o.lang)}</td>
       <td class="num">${dt(o.created_at)}</td>
       <td>${esc(o.customers?.name || '—')}</td>
       <td class="num">${esc(o.customers?.phone || '')}</td>
@@ -157,6 +159,7 @@ function openOrder(id) {
     <div class="box"><h3>Клієнт</h3><dl class="kv">
       <dt>Ім'я</dt><dd><a href="#" data-customer="${c.id}">${esc(c.name)}</a></dd>
       <dt>Телефон</dt><dd><a href="tel:${esc(c.phone)}">${esc(c.phone)}</a></dd>
+      <dt>Мова сайту</dt><dd>${LANG_NAME[o.lang] || LANG_NAME.uk}${o.lang && o.lang !== 'uk' ? ' <small class="muted">— клієнт оформив замовлення цією мовою</small>' : ''}</dd>
     </dl></div>
     <div class="box"><h3>Доставка й оплата</h3><dl class="kv">
       <dt>Місто</dt><dd>${esc(o.city)}</dd>
@@ -250,6 +253,13 @@ const stockTotal = id => sum(stockOf(id), s => s.qty);
 const stockBadge = t => t === 0 ? '<span class="badge stock-out">Немає</span>'
   : t <= 5 ? `<span class="badge stock-low">Закінчується · ${t}</span>` : `<span class="badge stock-ok">${t} шт.</span>`;
 
+// Чи заповнені переклади назви: РУС / ENG (сірий — бракує, на сайті буде українською)
+const TR_LANGS = [['ru', 'РУС', 'російська'], ['en', 'ENG', 'англійська']];
+const trBadges = p => TR_LANGS.map(([l, label, name]) => {
+  const ok = !!p.i18n?.[l]?.name?.trim();
+  return `<span class="lang-tag ${ok ? '' : 'off'}" title="${ok ? `Є переклад: ${name}` : `Немає перекладу (${name}) — на сайті буде українською`}">${label}</span>`;
+}).join('');
+
 function renderProducts() {
   $('#importBox').hidden = S.products.length > 0;
   $('#productChips').innerHTML = [['all', 'Усі'], ...SEASONS.map(s => [s.key, s.emoji + ' ' + s.name]), ['low', '⚠️ Мало на складі']]
@@ -261,7 +271,7 @@ function renderProducts() {
     <th class="right">Ціна</th><th class="right">Стара ціна</th><th>Залишок</th><th>На сайті</th></tr></thead><tbody>${list.map(p => `
     <tr data-product="${esc(p.id)}">
       <td><img class="thumb" src="${esc(imgUrl(p, 1))}" alt="" loading="lazy" onerror="this.style.visibility='hidden'"></td>
-      <td><b>${esc(p.name)}</b><br><small class="muted">${esc(p.id)} · ${esc(CATEGORIES[p.cat] || p.cat)}</small></td>
+      <td><b>${esc(p.name)}</b><br><small class="muted">${esc(p.id)} · ${esc(CATEGORIES[p.cat] || p.cat)}</small> ${trBadges(p)}</td>
       <td>${SEASON_NAME[p.season]}</td><td>${AUDIENCES[p.aud]}</td>
       <td class="num right strong">${fmt(p.price)}</td>
       <td class="num right">${p.old_price ? `<s class="muted">${fmt(p.old_price)}</s> <small>−${Math.round((1 - p.price / p.old_price) * 100)}%</small>` : '—'}</td>
@@ -303,10 +313,11 @@ function openProduct(id) {
     isNew: false, id: p.id, season: p.season, aud: p.aud, cat: p.cat, emoji: p.emoji, name: p.name, price: p.price,
     old: p.old_price ?? '', material: p.material, desc: p.description, active: p.active, sizes: [...p.sizes], colors: [...p.colors],
     rating: p.rating, reviews: p.reviews, sort: p.sort, qty, image1: p.image1, image2: p.image2,
+    i18n: JSON.parse(JSON.stringify(p.i18n || {})),
   } : {
     isNew: true, id: null, season: 'spring', aud: 'women', cat: 'outer', emoji: '👕', name: '', price: '', old: '', material: '', desc: '',
     active: true, sizes: ['S', 'M', 'L'], colors: [], rating: 5, reviews: 0, sort: Math.max(0, ...S.products.map(x => x.sort)) + 1, qty: {},
-    image1: null, image2: null,
+    image1: null, image2: null, i18n: {},
   };
   E.files = {}; E.preview = {}; E.remove = {};
   renderEditor(true);
@@ -320,6 +331,21 @@ function collectEditor() {
     material: v('pMaterial'), desc: v('pDesc'), active: $('#pActive').checked, rating: v('pRating'), reviews: v('pReviews'), sort: v('pSort'),
   });
   $$('#productForm [data-size][data-color]').forEach(i => { E.qty[i.dataset.size + '|' + i.dataset.color] = Math.max(0, parseInt(i.value, 10) || 0); });
+  $$('#productForm [data-tr]').forEach(i => {
+    const [lang, field] = i.dataset.tr.split('.');
+    (E.i18n[lang] ??= {})[field] = i.value;
+  });
+}
+
+// Переклади для збереження: лише заповнені поля, порожні мови не зберігаємо
+function cleanI18n(src) {
+  const out = {};
+  TR_LANGS.forEach(([l]) => {
+    const f = {};
+    ['name', 'desc', 'material'].forEach(k => { const v = (src?.[l]?.[k] || '').trim(); if (v) f[k] = v; });
+    if (Object.keys(f).length) out[l] = f;
+  });
+  return out;
 }
 
 function renderEditor(fresh = false) {
@@ -364,6 +390,19 @@ function renderEditor(fresh = false) {
       <div class="box"><h3>Опис</h3>
         <label>Опис для покупця<textarea id="pDesc" maxlength="600" placeholder="2–3 речення: чим річ хороша, з чим носити">${esc(E.desc)}</textarea></label>
         <label>Склад<input type="text" id="pMaterial" maxlength="200" placeholder="Напр.: 80% бавовна, 20% поліестер" value="${esc(E.material)}"></label>
+      </div>
+
+      <div class="box"><h3>Переклади для сайту</h3>
+        <p class="small muted">Покупці бачать ці тексти, коли перемикають сайт на РУС або ENG. Незаповнене поле показується українською.</p>
+        ${TR_LANGS.map(([l, label, name]) => {
+          const v = k => esc(E.i18n?.[l]?.[k] || '');
+          return `<details class="tr-lang" ${E.i18n?.[l]?.name ? '' : 'open'}>
+            <summary><span class="lang-tag ${E.i18n?.[l]?.name?.trim() ? '' : 'off'}">${label}</span> ${name[0].toUpperCase() + name.slice(1)}</summary>
+            <label>Назва<input type="text" maxlength="80" data-tr="${l}.name" lang="${l}" placeholder="${l === 'ru' ? 'Напр.: Свитер «Рапсодия»' : 'E.g. Sweater “Rhapsody”'}" value="${v('name')}"></label>
+            <label>Опис<textarea maxlength="600" data-tr="${l}.desc" lang="${l}">${v('desc')}</textarea></label>
+            <label>Склад<input type="text" maxlength="200" data-tr="${l}.material" lang="${l}" placeholder="${l === 'ru' ? '80% хлопок, 20% полиэстер' : '80% cotton, 20% polyester'}" value="${v('material')}"></label>
+          </details>`;
+        }).join('')}
       </div>
 
       <div class="box"><h3>Фото</h3>
@@ -491,6 +530,7 @@ async function saveProduct(e) {
     id, season: E.season, aud: E.aud, cat: E.cat, emoji: (E.emoji || '👕').trim(), name, price, old_price: old,
     sizes: sortSizes(E.sizes), colors: E.colors, material: E.material.trim(), description: E.desc.trim(),
     rating: Math.round(rating * 10) / 10, reviews, sort: parseInt(E.sort, 10) || 0, active: E.active, ...images,
+    i18n: cleanI18n(E.i18n),
   };
   const r = E.isNew ? await db.from('products').insert(row) : await db.from('products').update(row).eq('id', id);
   if (r.error) { done(); toast('Не збережено: ' + r.error.message, true); return; }
@@ -530,6 +570,7 @@ $('#importBtn').addEventListener('click', async () => {
   const products = PRODUCTS.map((p, i) => ({
     id: p.id, season: p.season, aud: p.aud, cat: p.cat, emoji: p.emoji, name: p.name, price: p.price, old_price: p.old || null,
     sizes: p.sizes, colors: p.colors, material: p.material, description: p.desc, rating: p.rating, reviews: p.reviews, sort: i, active: true,
+    i18n: (typeof PRODUCT_I18N !== 'undefined' && PRODUCT_I18N[p.id]) || {},
   }));
   const rnd = n => Math.floor(Math.random() * n);
   const stock = PRODUCTS.flatMap(p => {

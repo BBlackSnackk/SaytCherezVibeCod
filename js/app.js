@@ -1,7 +1,7 @@
 /* ===================== Вівальді — логіка сайту ===================== */
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
-const fmt = n => n.toLocaleString('uk-UA') + ' ₴';
+const fmt = n => LANG === 'en' ? '₴' + n.toLocaleString('en-US') : n.toLocaleString(LANG === 'ru' ? 'ru-RU' : 'uk-UA') + ' ₴';
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const byId = Object.fromEntries(PRODUCTS.map(p => [p.id, p]));
 const FREE_DELIVERY = 1500;
@@ -24,13 +24,15 @@ function toast(text) {
 /* ---------- Плейсхолдер / фото ---------- */
 // Фото, завантажене через CRM (Supabase Storage), або файл із репозиторію
 const imgSrc = (p, n) => (n === 1 ? p.img1 : p.img2) || `images/products/${p.id}-${n}.jpg`;
-const ratingLine = p => p.reviews > 0 ? `<b>★ ${p.rating.toFixed(1)}</b> · ${p.reviews} відгуків` : '<b class="new-badge">✨ Новинка</b>';
+const ratingLine = p => p.reviews > 0
+  ? `<b>★ ${p.rating.toFixed(1)}</b> · ${t('rating.reviews', { n: p.reviews, w: plural(p.reviews, 'review') })}`
+  : `<b class="new-badge">${t('rating.new')}</b>`;
 
 function photo(p, n = 1, label = false, hoverAlt = false) {
   return `<div class="ph" data-s="${p.season}">
     <span class="ph-emoji" aria-hidden="true">${p.emoji}</span>
     ${label ? `<span class="ph-label">${p.id}-${n}.jpg</span>` : ''}
-    <img src="${esc(imgSrc(p, n))}" alt="${esc(p.name)}, фото ${n}" loading="lazy" onerror="this.remove()">
+    <img src="${esc(imgSrc(p, n))}" alt="${esc(t('photoAlt', { name: p.name, n }))}" loading="lazy" onerror="this.remove()">
     ${hoverAlt ? `<img class="alt" src="${esc(imgSrc(p, 2))}" alt="" loading="lazy" onerror="this.remove()">` : ''}
   </div>`;
 }
@@ -42,8 +44,12 @@ const discount = p => p.old ? Math.round((1 - p.price / p.old) * 100) : 0;
 function matches(p, skip) {
   const q = F.q.trim().toLowerCase();
   if (q) {
-    const hay = [p.name, CATEGORIES[p.cat], AUDIENCES[p.aud], p.desc, p.material, SEASONS.find(s => s.key === p.season).name,
-      ...p.colors.map(c => COLORS[c][0])].join(' ').toLowerCase();
+    // шукаємо всіма трьома мовами, щоб «светр», «свитер» і «sweater» знаходили те саме на будь-якій версії сайту
+    const all = (dict, key) => [dict[key], ...(DATA_I18N[dict === UK.cat ? 'cat' : dict === UK.aud ? 'aud' : 'colors'][key] || [])];
+    const hay = [p.name, p.uk?.name, p.i18n?.ru?.name, p.i18n?.en?.name, p.desc, p.material,
+      ...all(UK.cat, p.cat), ...all(UK.aud, p.aud),
+      UK.seasons[p.season][0], ...Object.values(DATA_I18N.seasons[p.season] || {}).map(v => v[0]),
+      ...p.colors.flatMap(c => all(UK.colors, c))].join(' ').toLowerCase();
     if (!q.split(/\s+/).every(w => hay.includes(w))) return false;
   }
   if (skip !== 'aud' && F.aud.size && !F.aud.has(p.aud)) return false;
@@ -72,24 +78,26 @@ function renderFilters() {
   const adult = allSizes.filter(s => /^[A-Z]+$/.test(s)).sort((a, b) => ['XS', 'S', 'M', 'L', 'XL', 'XXL'].indexOf(a) - ['XS', 'S', 'M', 'L', 'XL', 'XXL'].indexOf(b));
   const kids = allSizes.filter(s => /^\d+$/.test(s)).sort((a, b) => a - b);
   const heads = allSizes.filter(s => s.includes('-'));
+  const prices = PRODUCTS.map(p => p.price);
+  const minPrice = prices.length ? Math.min(...prices) : 0, maxPrice = prices.length ? Math.max(...prices) : 0;
   const chip = (f, v, label) => `<button class="chip ${F[f].has(v) ? 'on' : ''}" data-f="${f}" data-v="${v}" aria-pressed="${F[f].has(v)}">${label}</button>`;
 
   $('#filterBody').innerHTML = `
-    <div class="fgroup"><h3>Для кого</h3><div class="chips">
+    <div class="fgroup"><h3>${t('f.aud')}</h3><div class="chips">
       ${Object.entries(AUDIENCES).map(([k, v]) => chip('aud', k, v)).join('')}</div></div>
-    <div class="fgroup"><h3>Сезон</h3><div class="chips">
+    <div class="fgroup"><h3>${t('f.season')}</h3><div class="chips">
       ${SEASONS.map(s => chip('season', s.key, s.emoji + ' ' + s.name)).join('')}</div></div>
-    <div class="fgroup"><h3>Категорія</h3>
+    <div class="fgroup"><h3>${t('f.cat')}</h3>
       ${Object.entries(CATEGORIES).map(([k, v]) => `<label class="check"><input type="checkbox" data-f="cat" data-v="${k}" ${F.cat.has(k) ? 'checked' : ''}> ${v}<span class="cnt">${count('cat', k)}</span></label>`).join('')}</div>
-    <div class="fgroup"><h3>Ціна, ₴</h3><div class="price-row">
-      <input type="number" id="pmin" placeholder="від 249" min="0" value="${F.min ?? ''}" aria-label="Ціна від">—
-      <input type="number" id="pmax" placeholder="до 2999" min="0" value="${F.max ?? ''}" aria-label="Ціна до"></div></div>
-    <div class="fgroup"><h3>Розмір — дорослі</h3><div class="chips">${adult.map(s => chip('size', s, s)).join('')}</div></div>
-    <div class="fgroup"><h3>Розмір — діти (зріст)</h3><div class="chips">${kids.map(s => chip('size', s, s)).join('')}${heads.map(s => chip('size', s, '🧢 ' + s)).join('')}</div></div>
-    <div class="fgroup"><h3>Колір</h3><div class="swatches">
+    <div class="fgroup"><h3>${t('f.price')}</h3><div class="price-row">
+      <input type="number" id="pmin" placeholder="${t('f.from', { p: minPrice })}" min="0" value="${F.min ?? ''}" aria-label="${t('f.priceFrom')}">—
+      <input type="number" id="pmax" placeholder="${t('f.to', { p: maxPrice })}" min="0" value="${F.max ?? ''}" aria-label="${t('f.priceTo')}"></div></div>
+    <div class="fgroup"><h3>${t('f.sizeAdult')}</h3><div class="chips">${adult.map(s => chip('size', s, s)).join('')}</div></div>
+    <div class="fgroup"><h3>${t('f.sizeKids')}</h3><div class="chips">${kids.map(s => chip('size', s, s)).join('')}${heads.map(s => chip('size', s, '🧢 ' + s)).join('')}</div></div>
+    <div class="fgroup"><h3>${t('f.color')}</h3><div class="swatches">
       ${Object.entries(COLORS).map(([k, [n, hex]]) => `<button class="swatch ${F.color.has(k) ? 'on' : ''}" style="background:${hex}" data-f="color" data-v="${k}" title="${n}" aria-label="${n}" aria-pressed="${F.color.has(k)}"></button>`).join('')}</div></div>
-    <div class="fgroup"><label class="check"><input type="checkbox" id="inStock" ${F.inStock ? 'checked' : ''}> Лише в наявності</label>
-      <label class="check"><input type="checkbox" id="saleOnly" ${F.sale ? 'checked' : ''}> 🔥 Лише зі знижкою</label></div>`;
+    <div class="fgroup"><label class="check"><input type="checkbox" id="inStock" ${F.inStock ? 'checked' : ''}> ${t('f.inStock')}</label>
+      <label class="check"><input type="checkbox" id="saleOnly" ${F.sale ? 'checked' : ''}> ${t('f.sale')}</label></div>`;
 }
 
 function renderActiveChips() {
@@ -97,15 +105,15 @@ function renderActiveChips() {
   F.aud.forEach(v => list.push(['aud', v, AUDIENCES[v]]));
   F.season.forEach(v => list.push(['season', v, SEASONS.find(s => s.key === v).name]));
   F.cat.forEach(v => list.push(['cat', v, CATEGORIES[v]]));
-  F.size.forEach(v => list.push(['size', v, 'Розмір ' + v]));
+  F.size.forEach(v => list.push(['size', v, t('chip.size', { s: v })]));
   F.color.forEach(v => list.push(['color', v, COLORS[v][0]]));
-  if (F.min != null) list.push(['min', '', 'від ' + fmt(F.min)]);
-  if (F.max != null) list.push(['max', '', 'до ' + fmt(F.max)]);
-  if (F.inStock) list.push(['inStock', '', 'В наявності']);
-  if (F.sale) list.push(['sale', '', 'Зі знижкою']);
-  if (F.q) list.push(['q', '', '«' + F.q + '»']);
-  $('#activeChips').innerHTML = list.map(([f, v, l]) => `<button class="chip" data-rm="${f}" data-v="${v}">${esc(l)}</button>`).join('')
-    + (list.length > 1 ? '<button class="link-btn" data-rm="all">Скинути все</button>' : '');
+  if (F.min != null) list.push(['min', '', t('chip.from', { p: fmt(F.min) })]);
+  if (F.max != null) list.push(['max', '', t('chip.to', { p: fmt(F.max) })]);
+  if (F.inStock) list.push(['inStock', '', t('chip.inStock')]);
+  if (F.sale) list.push(['sale', '', t('chip.sale')]);
+  if (F.q) list.push(['q', '', LANG === 'en' ? `“${F.q}”` : '«' + F.q + '»']);
+  $('#activeChips').innerHTML = list.map(([f, v, l]) => `<button class="chip" data-rm="${f}" data-v="${esc(v)}">${esc(l)}</button>`).join('')
+    + (list.length > 1 ? `<button class="link-btn" data-rm="all">${t('chip.resetAll')}</button>` : '');
 }
 
 /* ===================== КАТАЛОГ ===================== */
@@ -114,8 +122,8 @@ function card(p) {
   return `<article class="card ${p.stock === 'out' ? 'is-out' : ''}" data-open="${p.id}" tabindex="0" aria-label="${esc(p.name)}">
     <div class="tags">
       ${sale ? `<span class="tag sale">−${sale}%</span>` : ''}
-      ${p.stock === 'low' ? '<span class="tag low">Закінчується</span>' : ''}
-      ${p.stock === 'out' ? '<span class="tag out">Немає в наявності</span>' : ''}
+      ${p.stock === 'low' ? `<span class="tag low">${t('card.low')}</span>` : ''}
+      ${p.stock === 'out' ? `<span class="tag out">${t('card.out')}</span>` : ''}
     </div>
     ${photo(p, 1, false, true)}
     <div class="card-body">
@@ -124,7 +132,7 @@ function card(p) {
       <span class="rating">${ratingLine(p)}</span>
       <div class="dots">${p.colors.map(c => `<span class="dot" style="background:${COLORS[c][1]}" title="${COLORS[c][0]}"></span>`).join('')}</div>
       <div class="price-line"><span class="price ${p.old ? 'red' : ''}">${fmt(p.price)}</span>${p.old ? `<span class="old">${fmt(p.old)}</span>` : ''}</div>
-      <button class="btn ${p.stock === 'out' ? 'btn-ghost' : 'btn-primary'}" data-open="${p.id}">${p.stock === 'out' ? 'Детальніше' : 'Купити'}</button>
+      <button class="btn ${p.stock === 'out' ? 'btn-ghost' : 'btn-primary'}" data-open="${p.id}">${p.stock === 'out' ? t('card.more') : t('card.buy')}</button>
     </div>
   </article>`;
 }
@@ -157,10 +165,9 @@ function renderCatalog() {
     const groups = Object.keys(AUDIENCES).map(a => [a, items.filter(p => p.aud === a)]).filter(([, l]) => l.length);
     $('.season-body', sec).innerHTML = groups.length
       ? groups.map(([a, l]) => `<h3 class="aud-title">${{ women: '👩', men: '👨', kids: '🧒' }[a]} ${AUDIENCES[a]}</h3><div class="grid">${l.map(card).join('')}</div>`).join('')
-      : `<div class="empty">У сезоні «${s.name}» за цими фільтрами нічого немає 🤷 <button class="link-btn" data-rm="all">Скинути фільтри</button></div>`;
+      : `<div class="empty">${t('empty.season', { s: s.name })} <button class="link-btn" data-rm="all">${t('empty.reset')}</button></div>`;
   });
-  const word = n => (n % 10 === 1 && n % 100 !== 11) ? 'товар' : (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)) ? 'товари' : 'товарів';
-  $('#found').textContent = `Знайдено ${total} ${word(total)}`;
+  $('#found').textContent = t('found', { n: total, w: plural(total, 'product') });
   renderActiveChips();
 }
 
@@ -242,42 +249,43 @@ function openProduct(id) {
 function renderProduct() {
   const { p } = pm;
   const s = SEASONS.find(x => x.key === p.season);
-  const stockText = { in: '✔ В наявності', low: '⏳ Закінчується — лишилось кілька штук', out: '✖ Немає в наявності' }[p.stock];
+  const stockText = { in: t('pm.stockIn'), low: t('pm.stockLow'), out: t('pm.stockOut') }[p.stock];
+  const cname = c => COLORS[c][0];
   $('#pmodalBody').innerHTML = `
-    <button class="icon-btn pm-close" data-close-modal aria-label="Закрити">✕</button>
+    <button class="icon-btn pm-close" data-close-modal aria-label="${t('close')}">✕</button>
     <div class="pm">
       <div class="pm-gallery">
         ${photo(p, pm.img)}
-        <div class="thumbs">${[1, 2].map(n => `<button class="${pm.img === n ? 'on' : ''}" data-img="${n}" aria-label="Фото ${n}">${photo(p, n, false)}</button>`).join('')}</div>
-        <p class="pm-caption">${pm.img === 1 ? `На моделі — колір «${COLORS[p.colors[0]][0]}»` : (p.colors.length > 1 ? `Усі кольори: ${p.colors.map(c => COLORS[c][0].toLowerCase()).join(', ')}` : 'Вигляд без моделі')}</p>
+        <div class="thumbs">${[1, 2].map(n => `<button class="${pm.img === n ? 'on' : ''}" data-img="${n}" aria-label="${t('pm.photo', { n })}">${photo(p, n, false)}</button>`).join('')}</div>
+        <p class="pm-caption">${pm.img === 1 ? t('pm.capModel', { c: LANG === 'en' ? cname(p.colors[0]).toLowerCase() : cname(p.colors[0]) }) : (p.colors.length > 1 ? t('pm.capAll', { list: p.colors.map(c => cname(c).toLowerCase()).join(', ') }) : t('pm.capNoModel'))}</p>
       </div>
       <div class="pm-info">
         <span class="card-meta">${s.emoji} ${s.name} · ${AUDIENCES[p.aud]} · ${CATEGORIES[p.cat]}</span>
         <h2>${esc(p.name)}</h2>
-        <span class="rating">${ratingLine(p)} · код ${p.id}</span>
+        <span class="rating">${ratingLine(p)} · ${t('pm.code', { id: p.id })}</span>
         <div class="price-line"><span class="price ${p.old ? 'red' : ''}" style="font-size:28px">${fmt(p.price)}</span>${p.old ? `<span class="old">${fmt(p.old)}</span>` : ''}</div>
         <span class="stock ${p.stock}">${stockText}</span>
 
-        <span class="pm-label">Колір: <b style="text-transform:none;color:var(--ink)">${COLORS[pm.color][0]}</b></span>
-        <div class="pm-colors">${p.colors.map(c => `<button class="swatch ${pm.color === c ? 'on' : ''}" style="background:${COLORS[c][1]}" data-color="${c}" title="${COLORS[c][0]}" aria-label="${COLORS[c][0]}"></button>`).join('')}</div>
+        <span class="pm-label">${t('pm.color')} <b style="text-transform:none;color:var(--ink)">${cname(pm.color)}</b></span>
+        <div class="pm-colors">${p.colors.map(c => `<button class="swatch ${pm.color === c ? 'on' : ''}" style="background:${COLORS[c][1]}" data-color="${c}" title="${cname(c)}" aria-label="${cname(c)}"></button>`).join('')}</div>
 
-        <span class="pm-label">Розмір ${p.aud === 'kids' && p.cat !== 'acc' ? '(зріст, см)' : ''} · <a href="#sizes" class="link-btn" data-close-modal style="text-transform:none">таблиця розмірів</a></span>
-        <div class="pm-sizes" id="pmSizes">${p.sizes.map(z => { const n = avail(p, z, pm.color); return `<button class="size-btn ${pm.size === z ? 'on' : ''}" data-size="${z}" ${n === 0 ? 'disabled title="Немає в цьому кольорі"' : ''}>${z}</button>`; }).join('')}</div>
-        ${pm.size && avail(p, pm.size, pm.color) <= 3 ? `<span class="stock low">Лишилось ${avail(p, pm.size, pm.color)} шт. у розмірі ${pm.size}</span>` : ''}
+        <span class="pm-label">${t('pm.size')} ${p.aud === 'kids' && p.cat !== 'acc' ? t('pm.height') : ''} · <a href="#sizes" class="link-btn" data-close-modal style="text-transform:none">${t('pm.sizeTable')}</a></span>
+        <div class="pm-sizes" id="pmSizes">${p.sizes.map(z => { const n = avail(p, z, pm.color); return `<button class="size-btn ${pm.size === z ? 'on' : ''}" data-size="${esc(z)}" ${n === 0 ? `disabled title="${t('pm.noColor')}"` : ''}>${esc(z)}</button>`; }).join('')}</div>
+        ${pm.size && avail(p, pm.size, pm.color) <= 3 ? `<span class="stock low">${t('pm.left', { n: avail(p, pm.size, pm.color), s: esc(pm.size) })}</span>` : ''}
 
         <div class="pm-buy">
-          <div class="qty"><button data-q="-1" aria-label="Менше">−</button><span>${pm.qty}</span><button data-q="1" aria-label="Більше">+</button></div>
-          <button class="btn btn-primary" id="addToCart" ${p.stock === 'out' ? 'disabled' : ''}>${p.stock === 'out' ? 'Немає в наявності' : '🛒 Додати в кошик'}</button>
+          <div class="qty"><button data-q="-1" aria-label="${t('pm.less')}">−</button><span>${pm.qty}</span><button data-q="1" aria-label="${t('pm.more')}">+</button></div>
+          <button class="btn btn-primary" id="addToCart" ${p.stock === 'out' ? 'disabled' : ''}>${p.stock === 'out' ? t('card.out') : t('pm.add')}</button>
         </div>
-        ${p.stock === 'out' ? '<button class="link-btn" data-bot-open>Повідомити, коли з\'явиться — через Віва-бота</button>' : ''}
+        ${p.stock === 'out' ? `<button class="link-btn" data-bot-open>${t('pm.notify')}</button>` : ''}
 
         <p>${esc(p.desc)}</p>
         <dl class="specs">
-          <dt>Склад</dt><dd>${esc(p.material)}</dd>
-          <dt>Доступні кольори</dt><dd>${p.colors.map(c => COLORS[c][0]).join(', ')}</dd>
-          <dt>Розміри</dt><dd>${p.sizes.join(', ')}</dd>
-          <dt>Догляд</dt><dd>Делікатне прання при 30°, не відбілювати, прасувати при низькій температурі.</dd>
-          <dt>Доставка</dt><dd>Нова Пошта 1–3 дні · безкоштовно від ${fmt(FREE_DELIVERY)}</dd>
+          <dt>${t('spec.material')}</dt><dd>${esc(p.material)}</dd>
+          <dt>${t('spec.colors')}</dt><dd>${p.colors.map(cname).join(', ')}</dd>
+          <dt>${t('spec.sizes')}</dt><dd>${p.sizes.map(esc).join(', ')}</dd>
+          <dt>${t('spec.care')}</dt><dd>${t('spec.careText')}</dd>
+          <dt>${t('spec.delivery')}</dt><dd>${t('spec.deliveryText', { p: fmt(FREE_DELIVERY) })}</dd>
         </dl>
       </div>
     </div>`;
@@ -295,10 +303,10 @@ $('#pmodal').addEventListener('click', e => {
   const im = t.closest('[data-img]'); if (im) { pm.img = +im.dataset.img; renderProduct(); return; }
   const q = t.closest('[data-q]'); if (q) { pm.qty = Math.min(10, Math.max(1, pm.qty + +q.dataset.q)); renderProduct(); return; }
   if (t.closest('#addToCart')) {
-    if (!pm.size) { $('#pmSizes').classList.remove('shake'); void $('#pmSizes').offsetWidth; $('#pmSizes').classList.add('shake'); toast('Оберіть, будь ласка, розмір 📏'); return; }
+    if (!pm.size) { $('#pmSizes').classList.remove('shake'); void $('#pmSizes').offsetWidth; $('#pmSizes').classList.add('shake'); toast(t('toast.pickSize')); return; }
     const inCart = cart.filter(i => i.id === pm.p.id && i.size === pm.size && i.color === pm.color).reduce((s, i) => s + i.qty, 0);
     const left = avail(pm.p, pm.size, pm.color) - inCart;
-    if (left < pm.qty) { toast(left > 0 ? `Доступно ще лише ${left} шт. у цьому розмірі й кольорі` : 'Усі доступні штуки вже у вашому кошику'); return; }
+    if (left < pm.qty) { toast(left > 0 ? t('toast.onlyLeft', { n: left }) : t('toast.allInCart')); return; }
     addToCart(pm.p.id, pm.size, pm.color, pm.qty);
     $('#pmodal').close();
   }
@@ -315,35 +323,35 @@ function addToCart(id, size, color, qty = 1) {
   ex ? ex.qty = Math.min(10, ex.qty + qty) : cart.push({ id, size, color, qty });
   saveCart(); renderCart();
   const b = $('#cartCount'); b.classList.remove('bump'); void b.offsetWidth; b.classList.add('bump');
-  toast(`«${byId[id].name}» додано в кошик ✓`);
+  toast(t('toast.added', { name: byId[id].name }));
 }
 
 function renderCart() {
   $('#cartCount').textContent = cartCount();
   if (!cart.length) {
-    $('#cartBody').innerHTML = '<div class="cart-empty"><span>🧺</span>Кошик поки порожній.<br>Оберіть щось затишне у каталозі!</div>';
-    $('#cartFoot').innerHTML = '<button class="btn btn-ghost" data-close-cart data-scroll="#catalog">До каталогу</button>';
+    $('#cartBody').innerHTML = `<div class="cart-empty"><span>🧺</span>${t('cart.empty')}</div>`;
+    $('#cartFoot').innerHTML = `<button class="btn btn-ghost" data-close-cart data-scroll="#catalog">${t('cart.toCatalog')}</button>`;
     return;
   }
   $('#cartBody').innerHTML = cart.map((i, idx) => {
     const p = byId[i.id];
     return `<div class="citem">
       ${photo(p, 1, false)}
-      <div><h4>${esc(p.name)}</h4><small>Розмір ${i.size} · ${COLORS[i.color][0]}</small><small>${fmt(p.price)} / шт.</small></div>
+      <div><h4>${esc(p.name)}</h4><small>${t('cart.line', { s: esc(i.size), c: COLORS[i.color][0] })}</small><small>${t('cart.each', { p: fmt(p.price) })}</small></div>
       <div class="citem-right">
         <b>${fmt(p.price * i.qty)}</b>
-        <div class="qty"><button data-cq="${idx}" data-d="-1" aria-label="Менше">−</button><span>${i.qty}</span><button data-cq="${idx}" data-d="1" aria-label="Більше">+</button></div>
-        <button class="remove" data-crm="${idx}">видалити</button>
+        <div class="qty"><button data-cq="${idx}" data-d="-1" aria-label="${t('pm.less')}">−</button><span>${i.qty}</span><button data-cq="${idx}" data-d="1" aria-label="${t('pm.more')}">+</button></div>
+        <button class="remove" data-crm="${idx}">${t('cart.remove')}</button>
       </div></div>`;
   }).join('');
   const total = cartTotal();
   const left = FREE_DELIVERY - total;
   $('#cartFoot').innerHTML = `
-    <small>${left > 0 ? `Додайте ще <b>${fmt(left)}</b> — і доставка буде безкоштовною 🎁` : '🎉 Доставка до відділення — безкоштовно!'}</small>
+    <small>${left > 0 ? t('cart.addMore', { p: fmt(left) }) : t('cart.free')}</small>
     <div class="progress"><i style="width:${Math.min(100, total / FREE_DELIVERY * 100)}%"></i></div>
-    <div class="total"><span>Разом</span><span>${fmt(total)}</span></div>
-    <button class="btn btn-primary" data-bot-open="order">💬 Оформити через Віва-бота</button>
-    <small class="muted" style="text-align:center">Без реєстрації: бот запитає ім'я, телефон і відділення Нової Пошти</small>`;
+    <div class="total"><span>${t('cart.total')}</span><span>${fmt(total)}</span></div>
+    <button class="btn btn-primary" data-bot-open="order">${t('cart.checkout')}</button>
+    <small class="muted" style="text-align:center">${t('cart.note')}</small>`;
 }
 
 $('#cart').addEventListener('click', e => {
@@ -367,7 +375,7 @@ document.addEventListener('click', e => {
   const s = e.target.closest('[data-scroll]');
   if (s) { $(s.dataset.scroll).scrollIntoView(); }
   const f = e.target.closest('[data-fake]');
-  if (f) { e.preventDefault(); toast(`«${f.dataset.fake}» — сторінка ще в розробці 🎻`); }
+  if (f) { e.preventDefault(); toast(t('toast.fake', { x: f.dataset.fake })); }
 });
 document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && e.target.matches('.card[data-open]')) openProduct(e.target.dataset.open);
@@ -446,7 +454,8 @@ async function loadLiveCatalog() {
       old: x.old_price || undefined, sizes: x.sizes, colors: x.colors, material: x.material, desc: x.description,
       rating: Number(x.rating), reviews: x.reviews, stockMap: x.stock_map, img1: x.image1, img2: x.image2,
       stock: x.stock_total === 0 ? 'out' : x.stock_total <= 5 ? 'low' : 'in',
-    }));
+      i18n: x.i18n, // переклади з CRM: { ru: {name, desc, material}, en: {...} }
+    })).map(localizeProduct);
     PRODUCTS.splice(0, PRODUCTS.length, ...live);
     Object.keys(byId).forEach(k => delete byId[k]);
     live.forEach(p => { byId[p.id] = p; });
@@ -462,12 +471,12 @@ async function loadLiveCatalog() {
 function renderPromo() {
   const sale = PRODUCTS.filter(p => p.old && p.stock !== 'out').sort((a, b) => discount(b) - discount(a));
   if (!sale.length) { $('#sale').hidden = true; $('[data-nav="sale"]').hidden = true; return; }
+  $('#sale').hidden = false; $('[data-nav="sale"]').hidden = false;
   const n = sale.length;
-  const word = (n % 10 === 1 && n % 100 !== 11) ? 'модель' : (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)) ? 'моделі' : 'моделей';
   $('#promoMax').textContent = `−${discount(sale[0])}%`;
-  $('#promoLead').textContent = `${n} ${word} для жінок, чоловіків і дітей за зниженими цінами — поки є ваші розміри.`;
+  $('#promoLead').textContent = t('promo.lead', { n, w: plural(n, 'model') });
   $('#promoItems').innerHTML = sale.slice(0, 3).map(p => `
-    <button class="promo-item" data-open="${p.id}" aria-label="${esc(p.name)}, знижка ${discount(p)}%">
+    <button class="promo-item" data-open="${p.id}" aria-label="${esc(t('promo.aria', { name: p.name, d: discount(p) }))}">
       <span class="tag sale">−${discount(p)}%</span>
       ${photo(p)}
       <span class="promo-name">${esc(p.name)}</span>
@@ -478,6 +487,20 @@ $('#showSale').addEventListener('click', () => {
   resetFilters(); F.sale = true; F.sort = 'sale'; $('#sort').value = 'sale';
   update(false);
   scrollTo({ top: scrollY + $('.catalog-main').getBoundingClientRect().top - $('.header').offsetHeight - 12 });
+});
+
+/* ===================== ЗМІНА МОВИ ===================== */
+// i18n.js уже переклав тексти й товари — перемальовуємо все, що будує JavaScript
+document.addEventListener('langchange', () => {
+  const y = scrollY; // каталог перебудовується — не даємо сторінці стрибнути
+  buildSeasons();
+  currentZone = null;
+  renderPromo();
+  update(false);
+  renderCart();
+  if ($('#pmodal').open) renderProduct();
+  scrollTo({ top: y, behavior: 'instant' });
+  syncHeader();
 });
 
 /* ===================== СТАРТ ===================== */
