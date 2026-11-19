@@ -164,3 +164,21 @@ label { display: grid; gap: 4px; font-size: 12px; font-weight: 700; color: var(-
   .kv { grid-template-columns: 100px 1fr; }
   .row2 { grid-template-columns: 1fr; }
 }
+
+/* ---------- Редактор картки товару ---------- */
+.row3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.photos { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.photo-slot { display: grid; gap: 8px; align-content: start; font-size: 13px; }
+.photo-box { aspect-ratio: 3 / 4; border-radius: 12px; background: var(--soft); overflow: hidden; display: grid; place-items: center; border: 1.5px dashed var(--line); }
+.photo-box img { width: 100%; height: 100%; object-fit: cover; }
+.photo-emoji { font-size: 56px; }
+.small-btn { padding: 6px 12px; font-size: 13px; cursor: pointer; }
+.pick-group { display: grid; gap: 6px; }
+.inline { display: flex; gap: 8px; }
+.inline input { flex: 1; }
+.color-chip { display: inline-flex; align-items: center; gap: 2px; }
+.color-chip.on .swatch { box-shadow: 0 0 0 2px #fff; }
+.btn-danger { background: #fff; color: var(--bad); border: 1px solid color-mix(in srgb, var(--bad) 40%, white); margin-left: auto; }
+.btn-danger:hover { background: color-mix(in srgb, var(--bad) 8%, white); }
+.sticky-actions { position: sticky; bottom: -40px; background: var(--bg); padding: 12px 0 4px; margin-bottom: -20px; }
+@media (max-width: 760px) { .row3 { grid-template-columns: 1fr; } }

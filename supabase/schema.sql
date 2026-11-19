@@ -97,11 +97,16 @@ create index if not exists order_items_order_idx on public.order_items (order_id
 -- ---------- 6. Публічний каталог для сайту: товари + наявність ----------
 -- Представлення працює від імені власника, тож відвідувачі бачать лише ці колонки,
 -- а не саму таблицю залишків чи щось інше в базі.
+-- Фото, завантажені з CRM (Supabase Storage). Якщо порожньо — сайт бере images/products/<код>-1.jpg / -2.jpg.
+alter table public.products add column if not exists image1 text;   -- на моделі
+alter table public.products add column if not exists image2 text;   -- усі кольори / без моделі
+
 create or replace view public.catalog as
 select p.id, p.season, p.aud, p.cat, p.emoji, p.name, p.price, p.old_price, p.sizes, p.colors,
        p.material, p.description, p.rating, p.reviews, p.sort,
        coalesce(s.total, 0)              as stock_total,
-       coalesce(s.map, '{}'::jsonb)      as stock_map     -- {"M|beige": 4, ...}
+       coalesce(s.map, '{}'::jsonb)      as stock_map,    -- {"M|beige": 4, ...}
+       p.image1, p.image2
 from public.products p
 left join lateral (
   select sum(qty)::int as total, jsonb_object_agg(size || '|' || color, qty) as map
@@ -329,3 +334,22 @@ revoke all on public.staff, public.products, public.stock, public.customers, pub
 grant select on public.catalog to anon, authenticated;
 revoke all on function public.place_order(text, text, text, text, text, text, jsonb) from public;
 grant execute on function public.place_order(text, text, text, text, text, text, jsonb) to anon, authenticated;
+
+-- ---------- 10. Сховище фото товарів (Supabase Storage) ----------
+-- Публічний бакет: фото бачать усі відвідувачі сайту, завантажувати й видаляти — лише адміністратор.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('products', 'products', true, 5242880, array['image/jpeg', 'image/png', 'image/webp'])
+on conflict (id) do update set public = true, file_size_limit = excluded.file_size_limit, allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists "product images: admin read" on storage.objects;
+create policy "product images: admin read" on storage.objects for select to authenticated
+  using (bucket_id = 'products' and public.is_admin());
+drop policy if exists "product images: admin upload" on storage.objects;
+create policy "product images: admin upload" on storage.objects for insert to authenticated
+  with check (bucket_id = 'products' and public.is_admin());
+drop policy if exists "product images: admin delete" on storage.objects;
+create policy "product images: admin delete" on storage.objects for delete to authenticated
+  using (bucket_id = 'products' and public.is_admin());
+
+-- Товар, який уже замовляли, видалити не можна (історія замовлень) — його можна лише приховати.
+-- Це гарантує зовнішній ключ order_items.product_id → products.id.

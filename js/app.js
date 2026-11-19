@@ -22,12 +22,16 @@ function toast(text) {
 }
 
 /* ---------- Плейсхолдер / фото ---------- */
+// Фото, завантажене через CRM (Supabase Storage), або файл із репозиторію
+const imgSrc = (p, n) => (n === 1 ? p.img1 : p.img2) || `images/products/${p.id}-${n}.jpg`;
+const ratingLine = p => p.reviews > 0 ? `<b>★ ${p.rating.toFixed(1)}</b> · ${p.reviews} відгуків` : '<b class="new-badge">✨ Новинка</b>';
+
 function photo(p, n = 1, label = false, hoverAlt = false) {
   return `<div class="ph" data-s="${p.season}">
     <span class="ph-emoji" aria-hidden="true">${p.emoji}</span>
     ${label ? `<span class="ph-label">${p.id}-${n}.jpg</span>` : ''}
-    <img src="images/products/${p.id}-${n}.jpg" alt="${esc(p.name)}, фото ${n}" loading="lazy" onerror="this.remove()">
-    ${hoverAlt ? `<img class="alt" src="images/products/${p.id}-2.jpg" alt="" loading="lazy" onerror="this.remove()">` : ''}
+    <img src="${esc(imgSrc(p, n))}" alt="${esc(p.name)}, фото ${n}" loading="lazy" onerror="this.remove()">
+    ${hoverAlt ? `<img class="alt" src="${esc(imgSrc(p, 2))}" alt="" loading="lazy" onerror="this.remove()">` : ''}
   </div>`;
 }
 
@@ -117,7 +121,7 @@ function card(p) {
     <div class="card-body">
       <span class="card-meta">${AUDIENCES[p.aud]} · ${CATEGORIES[p.cat]}</span>
       <h3>${esc(p.name)}</h3>
-      <span class="rating"><b>★ ${p.rating.toFixed(1)}</b> · ${p.reviews} відгуків</span>
+      <span class="rating">${ratingLine(p)}</span>
       <div class="dots">${p.colors.map(c => `<span class="dot" style="background:${COLORS[c][1]}" title="${COLORS[c][0]}"></span>`).join('')}</div>
       <div class="price-line"><span class="price ${p.old ? 'red' : ''}">${fmt(p.price)}</span>${p.old ? `<span class="old">${fmt(p.old)}</span>` : ''}</div>
       <button class="btn ${p.stock === 'out' ? 'btn-ghost' : 'btn-primary'}" data-open="${p.id}">${p.stock === 'out' ? 'Детальніше' : 'Купити'}</button>
@@ -250,7 +254,7 @@ function renderProduct() {
       <div class="pm-info">
         <span class="card-meta">${s.emoji} ${s.name} · ${AUDIENCES[p.aud]} · ${CATEGORIES[p.cat]}</span>
         <h2>${esc(p.name)}</h2>
-        <span class="rating"><b>★ ${p.rating.toFixed(1)}</b> · ${p.reviews} відгуків · код ${p.id}</span>
+        <span class="rating">${ratingLine(p)} · код ${p.id}</span>
         <div class="price-line"><span class="price ${p.old ? 'red' : ''}" style="font-size:28px">${fmt(p.price)}</span>${p.old ? `<span class="old">${fmt(p.old)}</span>` : ''}</div>
         <span class="stock ${p.stock}">${stockText}</span>
 
@@ -420,7 +424,7 @@ async function loadLiveCatalog() {
     const live = rows.map(x => ({
       id: x.id, season: x.season, aud: x.aud, cat: x.cat, emoji: x.emoji, name: x.name, price: x.price,
       old: x.old_price || undefined, sizes: x.sizes, colors: x.colors, material: x.material, desc: x.description,
-      rating: Number(x.rating), reviews: x.reviews, stockMap: x.stock_map,
+      rating: Number(x.rating), reviews: x.reviews, stockMap: x.stock_map, img1: x.image1, img2: x.image2,
       stock: x.stock_total === 0 ? 'out' : x.stock_total <= 5 ? 'low' : 'in',
     }));
     PRODUCTS.splice(0, PRODUCTS.length, ...live);
