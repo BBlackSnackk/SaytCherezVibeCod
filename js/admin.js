@@ -208,8 +208,13 @@ function ttnClearsAt(o) {
 }
 $('#clearTtnBtn').addEventListener('click', async () => {
   const list = S.orders.filter(o => o.ttn && FINISHED.includes(o.status));
-  if (!list.length) { toast('Немає ТТН для очищення: у завершених замовленнях їх уже немає'); return; }
   const active = S.orders.filter(o => o.ttn && !FINISHED.includes(o.status)).length;
+  if (!list.length) {
+    toast(active
+      ? `Очищати нічого: ТТН є лише в замовленнях у роботі (${active}) — їх не чіпаємо, поки посилку не отримано, не повернуто чи не скасовано`
+      : 'Очищати нічого: у замовленнях немає жодної ТТН');
+    return;
+  }
   if (!confirm(`Очистити ТТН у ${list.length} завершених замовленнях (отримані, повернення, скасовані)?\n\n`
     + (active ? `${active} ТТН замовлень у роботі залишаться — ці посилки ще потрібно відстежувати.\n\n` : '')
     + 'Самі замовлення не видаляються. Скасувати очищення не можна.')) return;
