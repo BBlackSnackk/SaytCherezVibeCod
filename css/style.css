@@ -489,3 +489,26 @@ body { letter-spacing: -.005em; }
 .skip-link { position: absolute; left: 12px; top: -60px; z-index: 200; background: var(--surface); color: var(--ink); padding: 10px 16px; border-radius: 10px; font-weight: 700; box-shadow: var(--shadow-hover); transition: top .2s; }
 .skip-link:focus { top: 12px; }
 .msg small { display: block; margin-top: 6px; opacity: .75; font-size: 12px; }
+
+/* ===================== Мобільний чат і дотики ===================== */
+/* Прокрутка всередині панелей не «перетікає» на сторінку */
+.bot-log, .drawer-body, .filters, .pm-info, .pmodal { overscroll-behavior: contain; }
+
+/* На телефоні Віва-бот займає весь екран і стає головним: сторінка під ним не видна й не прокручується */
+@media (max-width: 600px) {
+  .bot { inset: 0; right: 0; bottom: 0; width: 100%; height: 100%; height: 100dvh; max-height: none; border-radius: 0; animation: slide-up .25s ease; }
+  .bot-head { padding-top: calc(12px + env(safe-area-inset-top, 0px)); }
+  .bot-input { padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
+  .bot-quick { max-height: 30vh; overflow-y: auto; }
+  html.bot-open, html.bot-open body { overflow: hidden; }
+}
+@keyframes slide-up { from { transform: translateY(24px); opacity: 0; } }
+
+/* Без синьої підсвітки та виділення тексту при натисканні на кнопки й посилання */
+* { -webkit-tap-highlight-color: transparent; }
+button, a, .chip, .swatch, .size-btn, .card { -webkit-user-select: none; user-select: none; touch-action: manipulation; }
+:focus:not(:focus-visible) { outline: none; }
+/* Поля вводу вже підсвічують рамку кольором сезону — без додаткового контуру */
+input:focus-visible, select:focus-visible { outline: none; }
+.search:focus-within { box-shadow: 0 0 0 3px rgba(255,255,255,.55); }
+.sort select:focus { border-color: var(--accent); }

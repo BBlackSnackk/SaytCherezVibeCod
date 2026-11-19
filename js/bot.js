@@ -182,12 +182,18 @@ const Bot = (() => {
     $('#bot').hidden = false;
     $('#botFab').hidden = true;
     $('#botHint').classList.remove('show');
+    $('#toTop').hidden = true;
+    document.documentElement.classList.add('bot-open'); // на телефоні сторінка під чатом не прокручується
     if (!started) { started = true; if (!intent) greet(); }
     if (intent === 'order') { if (started && log.children.length === 0) say('Привіт! Я <b>Віва-бот</b> 🎻'); startOrder(); }
     if (intent === 'size') { if (log.children.length === 0) say('Привіт! Я <b>Віва-бот</b> 🎻'); startSize(); }
-    setTimeout(() => input.focus(), 50);
+    // На сенсорних екранах не відкриваємо клавіатуру одразу — вона закриває половину чату
+    if (matchMedia('(hover: hover)').matches) setTimeout(() => input.focus(), 50);
   }
-  function close() { $('#bot').hidden = true; $('#botFab').hidden = false; }
+  function close() {
+    $('#bot').hidden = true; $('#botFab').hidden = false; $('#toTop').hidden = false;
+    document.documentElement.classList.remove('bot-open');
+  }
 
   $('#botFab').addEventListener('click', () => open());
   $('#botClose').addEventListener('click', close);
