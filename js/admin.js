@@ -56,7 +56,7 @@ async function enter(user) {
   const { data: staff, error } = await db.from('staff').select('*').eq('user_id', user.id).maybeSingle();
   if (error || !staff) {
     await db.auth.signOut();
-    showLogin('Цей акаунт не має доступу до CRM. Зверніться до адміністратора.');
+    showLogin(error ? 'Не вдалося перевірити доступ: ' + error.message : 'Цей акаунт не має доступу до CRM. Зверніться до адміністратора.');
     return;
   }
   S.user = user; S.staff = staff;
@@ -185,7 +185,7 @@ function openOrder(id) {
     e.preventDefault();
     const ttn = $('#oTtn').value.replace(/\D/g, '');
     if (ttn && ttn.length !== 14) { toast('ТТН має містити рівно 14 цифр', true); return; }
-    const btn = e.submitter; btn.disabled = true;
+    const btn = e.submitter || e.target.querySelector('[type="submit"]'); btn.disabled = true;
     const { error } = await db.from('orders').update({ status: $('#oStatus').value, ttn: ttn || null, manager_note: $('#oNote').value.trim() }).eq('id', o.id);
     btn.disabled = false;
     if (error) { toast('Не збережено: ' + error.message, true); return; }
@@ -309,7 +309,7 @@ function openProduct(id) {
     if (!(price > 0)) { toast('Вкажіть ціну', true); return; }
     if (old !== null && !(old > price)) { toast('Стара ціна має бути більшою за нову — інакше це не знижка', true); return; }
     const rows = $$('#productForm [data-size]').map(i => ({ product_id: p.id, size: i.dataset.size, color: i.dataset.color, qty: Math.max(0, parseInt(i.value, 10) || 0) }));
-    const btn = e.submitter; btn.disabled = true;
+    const btn = e.submitter || e.target.querySelector('[type="submit"]'); btn.disabled = true;
     const a = await db.from('products').update({ name, price, old_price: old, material: $('#pMaterial').value.trim(), description: $('#pDesc').value.trim(), active: $('#pActive').checked }).eq('id', p.id);
     const b = a.error ? a : await db.from('stock').upsert(rows);
     btn.disabled = false;

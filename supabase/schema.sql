@@ -245,6 +245,14 @@ create policy orders_update on public.orders for update to authenticated
 drop policy if exists order_items_read on public.order_items;
 create policy order_items_read on public.order_items for select to authenticated using (public.is_staff());
 
+-- Співробітники (authenticated): таблиці відкриті на рівні прав, а що саме можна —
+-- вирішують правила RLS вище (менеджер — замовлення й клієнти, адміністратор — усе).
+grant usage on schema public to anon, authenticated;
+grant select on public.staff to authenticated;
+grant select, insert, update, delete on public.products, public.stock to authenticated;
+grant select, update on public.customers, public.orders to authenticated;
+grant select on public.order_items to authenticated;
+
 -- Відвідувачі сайту (anon) бачать лише каталог і можуть лише оформити замовлення.
 revoke all on public.staff, public.products, public.stock, public.customers, public.orders, public.order_items from anon;
 grant select on public.catalog to anon, authenticated;
