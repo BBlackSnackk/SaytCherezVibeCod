@@ -401,6 +401,27 @@ function watchZones() {
 function syncHeader() { document.documentElement.style.setProperty('--header-h', $('.header').offsetHeight + 'px'); }
 window.addEventListener('resize', syncHeader);
 
+/* Меню розділів: прокрутка колесиком миші та затухання по краях */
+(() => {
+  const row = $('.seasonnav-inner');
+  const edges = () => {
+    const max = row.scrollWidth - row.clientWidth;
+    row.classList.toggle('more-left', row.scrollLeft > 2);
+    row.classList.toggle('more-right', row.scrollLeft < max - 2);
+  };
+  row.addEventListener('wheel', e => {
+    if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;       // тачпад і так гортає вбік
+    const max = row.scrollWidth - row.clientWidth;
+    if (max <= 0) return;                                       // усе вміщається — гортати нічого
+    if ((e.deltaY < 0 && row.scrollLeft <= 0) || (e.deltaY > 0 && row.scrollLeft >= max - 1)) return; // край — гортаємо сторінку
+    e.preventDefault();
+    row.scrollLeft += e.deltaY * (e.deltaMode === 1 ? 32 : 1);  // deltaMode 1 — рядки (Firefox)
+  }, { passive: false });
+  row.addEventListener('scroll', edges, { passive: true });
+  addEventListener('resize', edges);
+  edges();
+})();
+
 /* Кнопка «нагору» */
 window.addEventListener('scroll', () => $('#toTop').classList.toggle('show', scrollY > 900), { passive: true });
 $('#toTop').addEventListener('click', () => scrollTo({ top: 0 }));
